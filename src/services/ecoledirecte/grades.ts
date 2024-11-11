@@ -1,6 +1,6 @@
 import type { EcoleDirecteAccount } from "@/stores/account/types";
 import type { Period } from "@/services/shared/Period";
-import  {
+import {
   type AverageOverview,
   type Grade,
   GradeInformation,
@@ -18,7 +18,7 @@ const decodePeriod = (p: PawdirectePeriod): Period => {
     id: p.id,
     startTimestamp: p.startDate.getTime(),
     endTimestamp: p.endDate.getTime(),
-    yearly: p.yearly
+    yearly: p.yearly,
   };
 };
 
@@ -92,31 +92,21 @@ export const getGradesAndAverages = async (
     account.authentication.account,
     "",
   );
-  const overview = response.overview[period.id as string];
-
-  const averages: AverageOverview = {
-    classOverall: decodeGradeValue(overview.classAverage),
-    overall: decodeGradeValue(overview.overallAverage),
-    subjects: overview.subjects
-      .filter((s) => s.studentAverage.kind === GradeKind.Grade)
-      .map((s) => {
-        return {
-          classAverage: decodeGradeValue(s.classAverage),
-          color: s.color,
-          max: decodeGradeValue(s.maxAverage),
-          subjectName: s.name,
-          min: decodeGradeValue(s.minAverage),
-          average: decodeGradeValue(s.studentAverage),
-          outOf: decodeGradeValue(s.outOf),
-        };
-      })
-  };
 
   const grades: Grade[] = response.grades
     .filter((g) => g.period.id === period.id && !period.yearly)
     .map((g: ecoledirecte.Grade) => {
+      const coefficient = g.coefficient ?? 1;
+
+      const noteValue = g.value?.points ?? 0;
+      const outOfValue = g.outOf ? Number(g.outOf) : 20;
+
+      const normalizedNote = outOfValue !== 20 
+        ? (noteValue / outOfValue) * 20 
+        : noteValue;
+
       return {
-        id: buildLocalID(g),
+        id: `${g.subject.name}:${g.date.getTime()}/${g.comment || "none"}`,
         subjectName: g.subject.name,
         description: g.comment,
         timestamp: g.date.getTime(),
@@ -135,17 +125,92 @@ export const getGradesAndAverages = async (
         isBonus: false,
         isOptional: g.isOptional,
 
-        outOf: getGradeValue(g.outOf),
-        coefficient: g.coefficient,
+        outOf: getGradeValue(outOfValue),
+        coefficient: coefficient,
 
-        student: decodeGradeValue(g.value),
+        student: {
+          ...decodeGradeValue(g.value),
+          value: noteValue,
+          normalizedValue: normalizedNote,
+        },
         average: decodeGradeValue(g.average),
         max: decodeGradeValue(g.max),
         min: decodeGradeValue(g.min),
       };
     });
+
+  const subjectAverages: { 
+    [key: string]: { 
+      totalWeightedScore: number; 
+      totalCoefficient: number; 
+      grades: Grade[] 
+    } 
+  } = {};
+
+  grades.forEach(grade => {
+    if (grade.student.information === undefined && !grade.student.disabled) {
+      const subjectName = grade.subjectName;
+      const coefficient = grade.coefficient || 1;
+
+      if (!subjectAverages[subjectName]) {
+        subjectAverages[subjectName] = { 
+          totalWeightedScore: 0, 
+          totalCoefficient: 0,
+          grades: []
+        };
+      }
+
+      subjectAverages[subjectName].totalWeightedScore += grade.student.normalizedValue * coefficient;
+      subjectAverages[subjectName].totalCoefficient += coefficient;
+      subjectAverages[subjectName].grades.push(grade);
+    }
+  });
+
+  const averageSubjects = Object.keys(subjectAverages).map(subjectName => {
+    const subjectData = subjectAverages[subjectName];
+    
+    const averageValue = subjectData.totalCoefficient > 0 
+      ? subjectData.totalWeightedScore / subjectData.totalCoefficient 
+      : 0;
+
+    const subjectGrades = subjectData.grades;
+    const minGrade = subjectGrades.length > 0 
+      ? Math.min(...subjectGrades.map(g => g.student.value)) 
+      : 0;
+    const maxGrade = subjectGrades.length > 0 
+      ? Math.max(...subjectGrades.map(g => g.student.value)) 
+      : 0;
+
+    return {
+      subjectName,
+      average: getGradeValue(averageValue),
+      classAverage: getGradeValue(0),
+      min: getGradeValue(minGrade),
+      max: getGradeValue(maxGrade),
+      color: '',
+      outOf: getGradeValue(20),
+      coefficient: subjectData.totalCoefficient
+    };
+  });
+
+  // Calculer la moyenne générale pondérée
+  const overallTotalWeightedScore = Object.values(subjectAverages).reduce(
+    (sum, subject) => sum + subject.totalWeightedScore, 
+    0
+  );
+  const overallTotalCoefficient = Object.values(subjectAverages).reduce(
+    (sum, subject) => sum + subject.totalCoefficient, 
+    0
+  );
+  const overallAverage = overallTotalCoefficient > 0 
+    ? overallTotalWeightedScore / overallTotalCoefficient 
+    : 0;
+
+  const averages: AverageOverview = {
+    classOverall: getGradeValue(0),
+    overall: getGradeValue(overallAverage),
+    subjects: averageSubjects
+  };
+
   return { averages, grades };
 };
-
-export const buildLocalID = (g: ecoledirecte.Grade): string =>
-  `${g.subject.name}:${g.date.getTime()}/${g.comment || "none"}`;
