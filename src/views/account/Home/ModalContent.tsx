@@ -14,14 +14,22 @@ import {Dimensions, View} from "react-native";
 import NetInfo from "@react-native-community/netinfo";
 
 import {getErrorTitle} from "@/utils/format/get_papillon_error_title";
-import {Elements} from "./ElementIndex";
+import {Elements, type Element} from "./ElementIndex";
 import {animPapillon} from "@/utils/ui/animations";
 import {useFlagsStore} from "@/stores/flags";
 import {useCurrentAccount} from "@/stores/account";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {defaultTabs} from "@/consts/DefaultTabs";
+import {NativeStackNavigationProp} from "@react-navigation/native-stack";
+import {RouteParameters} from "@/router/helpers/types";
 
-const ModalContent = ({ navigation, refresh, endRefresh }) => {
+interface ModalContentProps {
+  navigation: NativeStackNavigationProp<RouteParameters, "HomeScreen", undefined>
+  refresh: boolean
+  endRefresh: () => unknown
+}
+
+const ModalContent: React.FC<ModalContentProps> = ({ navigation, refresh, endRefresh }) => {
   const { colors } = useTheme();
 
   const account = useCurrentAccount(store => store.account!);
@@ -33,7 +41,7 @@ const ModalContent = ({ navigation, refresh, endRefresh }) => {
   const [isOnline, setIsOnline] = useState(false);
   const errorTitle = useMemo(() => getErrorTitle(), []);
 
-  const [elements, setElements] = useState([]);
+  const [elements, setElements] = useState<Element[]>([]);
 
   useEffect(() => {
     setElements([]);
@@ -43,7 +51,7 @@ const ModalContent = ({ navigation, refresh, endRefresh }) => {
         {
           id: Element.id,
           component: Element.component,
-          importance: null,
+          importance: undefined,
         }
       ]);
     });
@@ -53,15 +61,15 @@ const ModalContent = ({ navigation, refresh, endRefresh }) => {
     setElements(prevElements => {
       const sortedElements = [...prevElements];
       sortedElements.sort((a, b) => {
-        let aImportance = a.importance === null ? -1 : a.importance;
-        let bImportance = b.importance === null ? -1 : b.importance;
+        let aImportance = a.importance === undefined ? -1 : a.importance;
+        let bImportance = b.importance === undefined ? -1 : b.importance;
         return bImportance - aImportance;
       });
       return sortedElements;
     });
   }
 
-  const updateImportance = (id, value) => {
+  const updateImportance = (id: string, value: number) => {
     setElements(prevElements => {
       const updatedElements = [...prevElements];
       const index = updatedElements.findIndex(element => element.id === id);
@@ -70,7 +78,7 @@ const ModalContent = ({ navigation, refresh, endRefresh }) => {
     });
   };
 
-  const handleImportanceChange = (id, value) => {
+  const handleImportanceChange = (id: string, value: number) => {
     updateImportance(id, value);
     sortElementsByImportance();
   };
@@ -203,8 +211,8 @@ const ModalContent = ({ navigation, refresh, endRefresh }) => {
           <Element.component
             navigation={navigation}
             onImportance={
-              Element.importance === null ?
-                (value) => handleImportanceChange(Element.id, value):
+              Element.importance === undefined ?
+                (value: number) => handleImportanceChange(Element.id, value):
                 () => {}
             }
           />
