@@ -1,3 +1,9 @@
+import ecoledirecte, {
+  GradeKind,
+  type Period as PawdirectePeriod,
+  type GradeValue as PawdirecteGradeValue,
+} from "pawdirecte";
+
 import type { EcoleDirecteAccount } from "@/stores/account/types";
 import type { Period } from "@/services/shared/Period";
 import {
@@ -6,10 +12,6 @@ import {
   GradeInformation,
   type GradeValue,
 } from "@/services/shared/Grade";
-import ecoledirecte, {
-  GradeKind,
-  type Period as PawdirectePeriod,
-} from "pawdirecte";
 import { AttachmentType } from "@/services/shared/Attachment";
 
 const decodePeriod = (p: PawdirectePeriod): Period => {
@@ -39,7 +41,7 @@ const decodeGradeKind = (kind: GradeKind): GradeInformation | undefined => {
 };
 
 const decodeGradeValue = (
-  value: ecoledirecte.GradeValue | undefined,
+  value: PawdirecteGradeValue | undefined,
 ): GradeValue => {
   if (!value)
     return {
@@ -101,8 +103,8 @@ export const getGradesAndAverages = async (
       const noteValue = g.value?.points ?? 0;
       const outOfValue = g.outOf ? Number(g.outOf) : 20;
 
-      const normalizedNote = outOfValue !== 20 
-        ? (noteValue / outOfValue) * 20 
+      const normalizedNote = outOfValue !== 20
+        ? (noteValue / outOfValue) * 20
         : noteValue;
 
       return {
@@ -139,28 +141,35 @@ export const getGradesAndAverages = async (
       };
     });
 
-  const subjectAverages: { 
-    [key: string]: { 
-      totalWeightedScore: number; 
-      totalCoefficient: number; 
-      grades: Grade[] 
-    } 
+  const subjectAverages: {
+    [key: string]: {
+      totalWeightedScore: number;
+      totalCoefficient: number;
+      grades: Grade[]
+    }
   } = {};
 
   grades.forEach(grade => {
-    if (grade.student.information === undefined && !grade.student.disabled) {
+    // Utilisez l'assertion de type ici
+    const normalizedValue = (grade.student as { normalizedValue?: number }).normalizedValue
+      ?? grade.student.value;
+
+    if (grade.student.information === undefined
+       && !grade.student.disabled
+        && normalizedValue !== null
+        && normalizedValue !== undefined) {
       const subjectName = grade.subjectName;
       const coefficient = grade.coefficient || 1;
 
       if (!subjectAverages[subjectName]) {
-        subjectAverages[subjectName] = { 
-          totalWeightedScore: 0, 
+        subjectAverages[subjectName] = {
+          totalWeightedScore: 0,
           totalCoefficient: 0,
           grades: []
         };
       }
 
-      subjectAverages[subjectName].totalWeightedScore += grade.student.normalizedValue * coefficient;
+      subjectAverages[subjectName].totalWeightedScore += normalizedValue * coefficient;
       subjectAverages[subjectName].totalCoefficient += coefficient;
       subjectAverages[subjectName].grades.push(grade);
     }
@@ -168,17 +177,17 @@ export const getGradesAndAverages = async (
 
   const averageSubjects = Object.keys(subjectAverages).map(subjectName => {
     const subjectData = subjectAverages[subjectName];
-    
-    const averageValue = subjectData.totalCoefficient > 0 
-      ? subjectData.totalWeightedScore / subjectData.totalCoefficient 
+
+    const averageValue = subjectData.totalCoefficient > 0
+      ? subjectData.totalWeightedScore / subjectData.totalCoefficient
       : 0;
 
     const subjectGrades = subjectData.grades;
-    const minGrade = subjectGrades.length > 0 
-      ? Math.min(...subjectGrades.map(g => g.student.value)) 
+    const minGrade = subjectGrades.length > 0
+      ? Math.min(...subjectGrades.map(g => g.student.value ?? 0))
       : 0;
-    const maxGrade = subjectGrades.length > 0 
-      ? Math.max(...subjectGrades.map(g => g.student.value)) 
+    const maxGrade = subjectGrades.length > 0
+      ? Math.max(...subjectGrades.map(g => g.student.value ?? 0))
       : 0;
 
     return {
@@ -187,23 +196,22 @@ export const getGradesAndAverages = async (
       classAverage: getGradeValue(0),
       min: getGradeValue(minGrade),
       max: getGradeValue(maxGrade),
-      color: '',
+      color: "",
       outOf: getGradeValue(20),
       coefficient: subjectData.totalCoefficient
     };
   });
 
-  // Calculer la moyenne générale pondérée
   const overallTotalWeightedScore = Object.values(subjectAverages).reduce(
-    (sum, subject) => sum + subject.totalWeightedScore, 
+    (sum, subject) => sum + subject.totalWeightedScore,
     0
   );
   const overallTotalCoefficient = Object.values(subjectAverages).reduce(
-    (sum, subject) => sum + subject.totalCoefficient, 
+    (sum, subject) => sum + subject.totalCoefficient,
     0
   );
-  const overallAverage = overallTotalCoefficient > 0 
-    ? overallTotalWeightedScore / overallTotalCoefficient 
+  const overallAverage = overallTotalCoefficient > 0
+    ? overallTotalWeightedScore / overallTotalCoefficient
     : 0;
 
   const averages: AverageOverview = {
