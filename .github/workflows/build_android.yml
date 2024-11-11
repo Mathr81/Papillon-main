@@ -4,23 +4,13 @@ on:
   workflow_dispatch:
 
 jobs:
-  clean:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Clean environment (just for your comprehension but it do nothing)
-        run: |
-          rm -rf node_modules
-          rm -rf android/app/build/
-          rm -rf $HOME/.gradle/caches/
-        
   build_android:
-    needs: clean
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
 
@@ -28,7 +18,7 @@ jobs:
         run: npm ci
 
       - name: Setup Java
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
@@ -48,22 +38,69 @@ jobs:
           ./gradlew bundleRelease
 
       - name: Upload APK
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: android-apk
           path: android/app/build/outputs/apk/release/app-release.apk
 
       - name: Upload AAB
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: android-aab
           path: android/app/build/outputs/bundle/release/app-release.aab
+
+      - name: Get Artifact URLs
+        id: artifact_urls
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.runId
+            });
+            
+            const apkArtifact = artifacts.data.artifacts.find(artifact => artifact.name === 'android-apk');
+            const aabArtifact = artifacts.data.artifacts.find(artifact => artifact.name === 'android-aab');
+            
+            return {
+              apkUrl: apkArtifact ? `https://github.com/${context.repo.owner}/${context.repo.repo}/suites/${context.runId}/artifacts/${apkArtifact.id}` : 'N/A',
+              aabUrl: aabArtifact ? `https://github.com/${context.repo.owner}/${context.repo.repo}/suites/${context.runId}/artifacts/${aabArtifact.id}` : 'N/A'
+            };
 
   notify_build_complete:
     needs: [build_android]
     runs-on: ubuntu-latest
     steps:
-      - name: Notify successful build
-        run: |
-          echo "Android build has been successfully completed."
-          echo "APK and AAB artifacts are available for download."
+      - name: Send Discord Notification
+        uses: tsickert/discord-webhook@v5.3.0
+        with:
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          embed-title: "Build Success! 🚀"
+          embed-description: "Android app has been successfully built and uploaded."
+          embed-color: 1146986 # Green color
+          embed-fields: |
+            [
+              {
+                "name": "APK Download",
+                "value": "${{ needs.build_android.outputs.artifact_urls.apkUrl }}"
+              },
+              {
+                "name": "AAB Download",
+                "value": "${{ needs.build_android.outputs.artifact_urls.aabUrl }}"
+              }
+            ]
+
+  notify_build_failure:
+    if: failure()
+    needs: [build_android]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Discord Failure Notification
+        uses: tsickert/discord-webhook@v5.3.0
+        with:
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          embed-title: "Build Failed! ❌"
+          embed-description: "An error occurred during the Android build process."
+          embed-color: 16711680 # Red color
