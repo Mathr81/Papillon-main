@@ -17,6 +17,7 @@ import LessonDocument from "@/views/account/Lessons/Document";
 import ScodocWebview from "@/views/login/IdentityProvider/actions/BackgroundIUTLannion";
 import ScodocBackgroundWebview from "@/views/login/IdentityProvider/actions/BackgroundIUTLannion";
 import BackgroundIUTLannion from "@/views/login/IdentityProvider/actions/BackgroundIUTLannion";
+import { Platform } from "react-native";
 
 export default [
   createScreen("NoteReaction", NoteReaction, {
@@ -41,6 +42,7 @@ export default [
     headerTitle: "Item",
     presentation: "modal",
     headerShown: false,
+    animation: "slide_from_right",
   }),
   createScreen("AddonLogs", AddonLogs, {
     headerTitle: "Logs",
@@ -71,6 +73,7 @@ export default [
   createScreen("GradeDocument", GradeDocument, {
     headerTitle: "Détail de la note",
     presentation: "modal",
+    headerShown: Platform.OS !== "ios",
   }),
   createScreen("ChatCreate", ChatCreate, {
     headerTitle: "Nouvelle discussion",

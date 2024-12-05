@@ -75,7 +75,7 @@ const PapillonPicker: React.FC<PapillonPickerProps> = ({
             },
             {
               backgroundColor: Platform.OS === "ios" ? theme.colors.card + 50 : theme.colors.card,
-              borderColor: theme.colors.text + "35",
+              borderColor: theme.colors.text + "55",
               top: contentHeight + 10,
             }
           ]}
@@ -190,14 +190,14 @@ const styles = StyleSheet.create({
       width: 0,
       height: 1,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
     elevation: 2,
   },
   item: {
     paddingVertical: 12,
-    paddingRight: 14,
-    marginLeft: 14,
+    paddingRight: 22,
+    marginLeft: 16,
     width: "100%",
     flexDirection: "row",
     justifyContent: "flex-start",

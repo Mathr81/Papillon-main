@@ -16,7 +16,6 @@ import {NativeStackNavigationProp} from "@react-navigation/native-stack";
 import {RouteParameters} from "@/router/helpers/types";
 import {Information} from "@/services/shared/Information";
 import { selectColorSeed } from "@/utils/format/select_color_seed";
-import RenderHTML from "react-native-render-html";
 
 type NewsItem = Omit<Information, "date"> & { date: string, important: boolean };
 
@@ -60,7 +59,7 @@ const NewsListItem: React.FC<NewsListItemProps> = ({ index, message, navigation,
           {message.author}
         </NativeText>
 
-        {!message.read && isED && (
+        {!message.read && !isED && (
           <View style={{
             width: 8,
             height: 8,

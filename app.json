@@ -2,7 +2,7 @@
   "expo": {
     "name": "Papillon",
     "slug": "papillonvex",
-    "scheme": "papillon",
+    "scheme": ["papillon", "izly"],
     "version": "7.5.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,10 +13,9 @@
       "resizeMode": "cover",
       "backgroundColor": "#32AB8E"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
+      "buildNumber": "7501",
       "supportsTablet": true,
       "appStoreUrl": "https://apps.apple.com/us/app/papillon-lappli-scolaire/id6477761165",
       "bundleIdentifier": "xyz.getpapillon.ios",
@@ -36,6 +35,7 @@
       }
     },
     "android": {
+      "versionCode": 7501,
       "playStoreUrl": "https://play.google.com/store/apps/details?id=xyz.getpapillon.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/launch/adaptive-icon-foreground.png",
@@ -60,7 +60,18 @@
       ]
     },
     "plugins": [
-      "expo-font",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "assets/fonts/FixelText-Bold.ttf",
+            "assets/fonts/FixelText-Light.ttf",
+            "assets/fonts/FixelText-Medium.ttf",
+            "assets/fonts/FixelText-Regular.ttf",
+            "assets/fonts/FixelText-SemiBold.ttf"
+          ]
+        }
+      ],
       "expo-barcode-scanner",
       [
         "expo-location",

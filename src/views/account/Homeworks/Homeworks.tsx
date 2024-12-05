@@ -19,6 +19,8 @@ import {
 } from "react-native";
 import { dateToEpochWeekNumber, epochWNToDate } from "@/utils/epochWeekNumber";
 
+import * as StoreReview from "expo-store-review";
+
 import HomeworksNoHomeworksItem from "./Atoms/NoHomeworks";
 import HomeworkItem from "./Atoms/Item";
 import { PressableScale } from "react-native-pressable-scale";
@@ -41,6 +43,7 @@ import {Screen} from "@/router/helpers/types";
 import {NativeSyntheticEvent} from "react-native/Libraries/Types/CoreEventTypes";
 import {NativeScrollEvent, ScrollViewProps} from "react-native/Libraries/Components/ScrollView/ScrollView";
 import {SearchBar} from "react-native-screens";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type HomeworksPageProps = {
   index: number;
@@ -200,16 +203,38 @@ const WeekView: Screen<"Homeworks"> = ({ route, navigation }) => {
       return acc;
     }, {} as Record<string, Homework[]>);
 
-    // Moved completed homework to the bottom of the day
-    const sortedGroupedHomework = Object.keys(groupedHomework).reduce((acc, day) => {
-      acc[day] = groupedHomework[day].sort((a, b) => {
-        if (a.done === b.done) {
-          return 0; // Keep the current order if both are either completed or not completed
+    const askForReview = async () => {
+      StoreReview.isAvailableAsync().then((available) => {
+        if (available) {
+          StoreReview.requestReview();
         }
-        return a.done ? 1 : -1; // Unfinished at the top, finished at the bottom
       });
-      return acc;
-    }, {} as Record<string, Homework[]>);
+    };
+
+    const countCheckForReview = async () => {
+      AsyncStorage.getItem("review_checkedHomeworkCount").then((value) => {
+        if (value) {
+          if (parseInt(value) >= 5) {
+            AsyncStorage.setItem("review_checkedHomeworkCount", "0");
+
+            setTimeout(() => {
+              AsyncStorage.getItem("review_given").then((value) => {
+                if(!value) {
+                  console.log("Asking for review");
+                  askForReview();
+                  AsyncStorage.setItem("review_given", "true");
+                }
+              });
+            }, 1000);
+          }
+          else {
+            AsyncStorage.setItem("review_checkedHomeworkCount", (parseInt(value) + 1).toString());
+          }
+        } else {
+          AsyncStorage.setItem("review_checkedHomeworkCount", "1");
+        }
+      });
+    };
 
     return (
       <ScrollView
@@ -247,6 +272,7 @@ const WeekView: Screen<"Homeworks"> = ({ route, navigation }) => {
                   onDonePressHandler={async () => {
                     await toggleHomeworkState(account, homework);
                     await updateHomeworks(true, false, false);
+                    await countCheckForReview();
                   }}
                 />
               ))}
