@@ -4,8 +4,15 @@ import ecoledirecte, {
   type GradeValue as PawdirecteGradeValue,
 } from "pawdirecte";
 
+import ecoledirecte, {
+  GradeKind,
+  type Period as PawdirectePeriod,
+  type GradeValue as PawdirecteGradeValue,
+} from "pawdirecte";
+
 import type { EcoleDirecteAccount } from "@/stores/account/types";
 import type { Period } from "@/services/shared/Period";
+import {
 import {
   type AverageOverview,
   type Grade,
@@ -20,6 +27,7 @@ const decodePeriod = (p: PawdirectePeriod): Period => {
     id: p.id,
     startTimestamp: p.startDate.getTime(),
     endTimestamp: p.endDate.getTime(),
+    yearly: p.yearly,
     yearly: p.yearly,
   };
 };
@@ -41,6 +49,7 @@ const decodeGradeKind = (kind: GradeKind): GradeInformation | undefined => {
 };
 
 const decodeGradeValue = (
+  value: PawdirecteGradeValue | undefined,
   value: PawdirecteGradeValue | undefined,
 ): GradeValue => {
   if (!value)
@@ -107,7 +116,17 @@ export const getGradesAndAverages = async (
         ? (noteValue / outOfValue) * 20
         : noteValue;
 
+      const coefficient = g.coefficient ?? 1;
+
+      const noteValue = g.value?.points ?? 0;
+      const outOfValue = g.outOf ? Number(g.outOf) : 20;
+
+      const normalizedNote = outOfValue !== 20
+        ? (noteValue / outOfValue) * 20
+        : noteValue;
+
       return {
+        id: `${g.subject.name}:${g.date.getTime()}/${g.comment || "none"}`,
         id: `${g.subject.name}:${g.date.getTime()}/${g.comment || "none"}`,
         subjectName: g.subject.name,
         description: g.comment,
@@ -129,7 +148,14 @@ export const getGradesAndAverages = async (
 
         outOf: getGradeValue(outOfValue),
         coefficient: coefficient,
+        outOf: getGradeValue(outOfValue),
+        coefficient: coefficient,
 
+        student: {
+          ...decodeGradeValue(g.value),
+          value: noteValue,
+          normalizedValue: normalizedNote,
+        },
         student: {
           ...decodeGradeValue(g.value),
           value: noteValue,
