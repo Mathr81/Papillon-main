@@ -145,14 +145,16 @@ export const getGradesAndAverages = async (
     [key: string]: {
       totalWeightedScore: number;
       totalCoefficient: number;
-      grades: Grade[]
+      grades: Grade[];
+      classWeightedScore: number;
+      classCoefficient: number;
     }
   } = {};
 
   grades.forEach(grade => {
-    // Utilisez l'assertion de type ici
     const normalizedValue = (grade.student as { normalizedValue?: number }).normalizedValue
       ?? grade.student.value;
+    const classValue = grade.average?.value ?? 0;
 
     if (grade.student.information === undefined
        && !grade.student.disabled
@@ -165,12 +167,18 @@ export const getGradesAndAverages = async (
         subjectAverages[subjectName] = {
           totalWeightedScore: 0,
           totalCoefficient: 0,
-          grades: []
+          grades: [],
+          classWeightedScore: 0,
+          classCoefficient: 0
         };
       }
 
       subjectAverages[subjectName].totalWeightedScore += normalizedValue * coefficient;
       subjectAverages[subjectName].totalCoefficient += coefficient;
+      if (grade.average?.value !== undefined && !grade.average.disabled) {
+        subjectAverages[subjectName].classWeightedScore += classValue * coefficient;
+        subjectAverages[subjectName].classCoefficient += coefficient;
+      }
       subjectAverages[subjectName].grades.push(grade);
     }
   });
@@ -180,6 +188,10 @@ export const getGradesAndAverages = async (
 
     const averageValue = subjectData.totalCoefficient > 0
       ? subjectData.totalWeightedScore / subjectData.totalCoefficient
+      : 0;
+
+    const classAverageValue = subjectData.classCoefficient > 0
+      ? subjectData.classWeightedScore / subjectData.classCoefficient
       : 0;
 
     const subjectGrades = subjectData.grades;
@@ -193,12 +205,12 @@ export const getGradesAndAverages = async (
     return {
       subjectName,
       average: getGradeValue(averageValue),
-      classAverage: getGradeValue(0),
+      classAverage: getGradeValue(classAverageValue),
       min: getGradeValue(minGrade),
       max: getGradeValue(maxGrade),
       color: "",
       outOf: getGradeValue(20),
-      coefficient: 1  // Chaque matière a le même poids
+      coefficient: 1
     };
   });
 
@@ -214,8 +226,20 @@ export const getGradesAndAverages = async (
     ? overallTotalWeightedScore / overallTotalCoefficient
     : 0;
 
+  const classOverallTotalWeightedScore = averageSubjects.reduce(
+    (sum, subject) => sum + ((subject.classAverage.value ?? 0) * subject.coefficient),
+    0
+  );
+  const classOverallTotalCoefficient = averageSubjects.reduce(
+    (sum, subject) => sum + (subject.classAverage.value !== undefined ? subject.coefficient : 0),
+    0
+  );
+  const classOverallAverage = classOverallTotalCoefficient > 0
+    ? classOverallTotalWeightedScore / classOverallTotalCoefficient
+    : 0;
+
   const averages: AverageOverview = {
-    classOverall: getGradeValue(0),
+    classOverall: getGradeValue(classOverallAverage),
     overall: getGradeValue(overallAverage),
     subjects: averageSubjects
   };
