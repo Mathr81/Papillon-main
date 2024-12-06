@@ -13,10 +13,22 @@ export const useTimetableStore = create<TimetableStore>()(
         log(`updating classes for week ${weekNumber}`, "timetable:updateClasses");
 
         set((state) => {
+          // Filter out duplicate classes based on startTimestamp
+          const processedClasses = classes.reduce<typeof classes>((acc, current) => {
+            const isDuplicate = acc.some(item =>
+              item.startTimestamp === current.startTimestamp &&
+              item.endTimestamp === current.endTimestamp
+            );
+            if (!isDuplicate) {
+              acc.push(current);
+            }
+            return acc;
+          }, []);
+
           return {
             timetables: {
               ...state.timetables,
-              [weekNumber]: classes
+              [weekNumber]: processedClasses
             }
           };
         });
