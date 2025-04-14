@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { Paperclip, Sparkles } from "lucide-react-native";
+import {Check, Clock, Paperclip, PencilLine, Sparkles, WifiOff} from "lucide-react-native";
 import { getSubjectData } from "@/services/shared/Subject";
-import { useTheme } from "@react-navigation/native";
+import { useRoute, useTheme} from "@react-navigation/native";
 import { NativeItem, NativeText } from "@/components/Global/NativeComponents";
 import PapillonCheckbox from "@/components/Global/PapillonCheckbox";
 import Reanimated, { LinearTransition } from "react-native-reanimated";
@@ -15,6 +15,14 @@ import { Homework, HomeworkReturnType } from "@/services/shared/Homework";
 import detectCategory from "@/utils/magic/categorizeHomeworks";
 import { LinearGradient } from "expo-linear-gradient";
 import { useCurrentAccount } from "@/stores/account";
+import LinkFavicon, { getURLDomain } from "@/components/Global/LinkFavicon";
+import { AutoFileIcon } from "@/components/Global/FileIcon";
+import { timestampToString } from "@/utils/format/DateHelper";
+import parse_homeworks from "@/utils/format/format_pronote_homeworks";
+import MaskedView from "@react-native-masked-view/masked-view";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { useAlert } from "@/providers/AlertProvider";
+
 
 interface HomeworkItemProps {
   key: number | string
@@ -22,14 +30,23 @@ interface HomeworkItemProps {
   total: number
   homework: Homework
   onDonePressHandler: () => unknown
-  navigation: NativeStackNavigationProp<RouteParameters, "HomeScreen" | "Homeworks", undefined>
+  navigation: NativeStackNavigationProp<RouteParameters, "HomeScreen" | "Homeworks", undefined>,
+  contentOpacity?: number,
+  entering?: any,
+  exiting?: any
 }
 
-const HomeworkItem = ({ homework, navigation, onDonePressHandler, index, total }: HomeworkItemProps) => {
+
+const HomeworkItem = ({ homework, navigation, onDonePressHandler, index, total, contentOpacity=1, entering, exiting }: HomeworkItemProps) => {
   const theme = useTheme();
   const [subjectData, setSubjectData] = useState(getSubjectData(homework.subject));
   const [category, setCategory] = useState<string | null>(null);
+  const [shouldShowMoreGradient, setShouldShowMoreGradient] = useState(false);
   const account = useCurrentAccount((store) => store.account!);
+  const { isOnline } = useOnlineStatus();
+  const { showAlert } = useAlert();
+
+  const route = useRoute();
 
   const stylesText = StyleSheet.create({
     body: {
@@ -37,7 +54,8 @@ const HomeworkItem = ({ homework, navigation, onDonePressHandler, index, total }
       fontFamily: "medium",
       fontSize: 16,
       lineHeight: 22,
-    }
+      maxHeight: shouldShowMoreGradient ? 20 * 5 : 25 * 5,
+    },
   });
 
   useEffect(() => {
@@ -54,8 +72,22 @@ const HomeworkItem = ({ homework, navigation, onDonePressHandler, index, total }
   const [isLoading, setIsLoading] = useState(false);
 
   const handlePress = useCallback(() => {
-    setIsLoading(true);
-    onDonePressHandler();
+    if (isOnline) {
+      setIsLoading(true);
+      onDonePressHandler();
+    } else {
+      showAlert({
+        title: "Information",
+        message: "Tu es hors ligne. Vérifie ta connexion Internet et réessaie",
+        icon: <WifiOff />,
+        actions: [
+          {
+            title: "OK",
+            icon: <Check />,
+          },
+        ],
+      });
+    }
   }, [onDonePressHandler]);
 
   const [mainLoaded, setMainLoaded] = useState(false);
@@ -140,8 +172,8 @@ const HomeworkItem = ({ homework, navigation, onDonePressHandler, index, total }
       onPress={() => navigation.navigate("HomeworksDocument", { homework })}
       chevron={false}
       key={homework.content}
-      entering={FadeIn}
-      exiting={FadeOut}
+      entering={entering || FadeIn}
+      exiting={exiting || FadeOut}
       separator={index !== total - 1}
       style={{ backgroundColor: category ? (subjectData.color + "15") : undefined }}
       leading={
@@ -166,6 +198,9 @@ const HomeworkItem = ({ homework, navigation, onDonePressHandler, index, total }
       >
         <Reanimated.View style={{ flex: 1, gap: 4 }} layout={animPapillon(LinearTransition)}>
           <View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
+            {homework.personalizate && (
+              <PencilLine color={subjectData.color} size={20} strokeWidth={2} style={{marginRight: -4}} />
+            )}
             <NativeText variant="overtitle" style={{ color: subjectData.color, flex: 1 }} numberOfLines={1}>
               {subjectData.pretty}
             </NativeText>
@@ -177,10 +212,48 @@ const HomeworkItem = ({ homework, navigation, onDonePressHandler, index, total }
             entering={FadeIn.duration(200)}
             exiting={FadeOut.duration(200).delay(50)}
           >
-            <HTMLView
-              value={`<body>${homework.content}</body>`}
-              stylesheet={stylesText}
-            />
+
+            <View
+              onLayout={(event) => {
+                const { height } = event.nativeEvent.layout;
+                if (height >= 22 * 5) {
+                  setShouldShowMoreGradient(true);
+                }
+              }}
+            >
+              <MaskedView
+                maskElement={
+                  <LinearGradient
+                    colors={shouldShowMoreGradient ? ["#000000", "#00000000"] : ["#000000", "#000000"]}
+                    locations={[0.5, 1]}
+                    style={{
+                      position: "absolute",
+                      left: 0,
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                    }}
+                  />
+                }
+                style={{
+                  opacity: contentOpacity || 1,
+                }}
+              >
+                <HTMLView
+                  value={`<body>${parse_homeworks(homework.content).replace("\n", "")}</body>`}
+                  stylesheet={stylesText}
+                />
+              </MaskedView>
+            </View>
+            <View style={{ flexDirection: "row", gap: 4, paddingBottom: 4, paddingTop: 8, alignItems: "center", alignSelf: "flex-start" }}>
+              <Clock
+                size={18}
+                strokeWidth={2.5}
+                opacity={0.6}
+                color={theme.colors.text}
+              />
+              <NativeText style={{color: theme.colors.text, opacity:0.5}}>{timestampToString(homework.due)}</NativeText>
+            </View>
           </Reanimated.View>
           {homework.attachments.length > 0 && (
             <Reanimated.View
@@ -189,7 +262,7 @@ const HomeworkItem = ({ homework, navigation, onDonePressHandler, index, total }
                 flexDirection: "row",
                 alignItems: "center",
                 gap: 6,
-                marginTop: 4,
+                marginTop: 8,
                 borderWidth: 1,
                 alignSelf: "flex-start",
                 borderColor: theme.colors.text + "33",
@@ -200,16 +273,28 @@ const HomeworkItem = ({ homework, navigation, onDonePressHandler, index, total }
                 marginRight: 16,
               }}
             >
-              <Paperclip
-                size={18}
-                strokeWidth={2.5}
-                opacity={0.6}
-                color={theme.colors.text}
-              />
+              {(homework.attachments.length > 1) ?
+                <Paperclip
+                  size={20}
+                  strokeWidth={2.5}
+                  color={theme.colors.text+"80"}
+                />
+                :
+                (homework.attachments[0].type == "file") ?
+                  <AutoFileIcon
+                    size={20}
+                    strokeWidth={2.5}
+                    color={theme.colors.text}
+                    opacity={0.7}
+                    filename={homework.attachments[0].name}
+                  />
+                  :
+                  <LinkFavicon size={20} url={homework.attachments[0].url} />
+              }
               <NativeText variant="subtitle" numberOfLines={1}>
                 {homework.attachments.length > 1 ?
                   `${homework.attachments.length} pièces jointes` :
-                  homework.attachments[0].name
+                  homework.attachments[0].name || getURLDomain(homework.attachments[0].url, true)
                 }
               </NativeText>
             </Reanimated.View>

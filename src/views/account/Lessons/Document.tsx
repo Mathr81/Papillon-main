@@ -12,6 +12,7 @@ import {
   Platform,
   Linking,
   StyleSheet,
+  ActivityIndicator,
 } from "react-native";
 import { getSubjectData } from "@/services/shared/Subject";
 import { Screen } from "@/router/helpers/types";
@@ -26,29 +27,23 @@ import {
   Hourglass,
   Info,
   LinkIcon,
-  PersonStanding,
+  User2,
   Users,
 } from "lucide-react-native";
-
 import * as WebBrowser from "expo-web-browser";
-import { Link, useTheme } from "@react-navigation/native";
+import { LinearGradient } from "expo-linear-gradient";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
 import HTMLView from "react-native-htmlview";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PapillonModernHeader } from "@/components/Global/PapillonModernHeader";
-import { TimetableClass } from "@/services/shared/Timetable";
+import { TimetableClass, TimetableRessource } from "@/services/shared/Timetable";
 import { ClassSubject } from "pawdirecte";
 import { useClassSubjectStore } from "@/stores/classSubject";
 import { useCurrentAccount } from "@/stores/account";
 import { AccountService } from "@/stores/account/types";
 import getAndOpenFile from "@/utils/files/getAndOpenFile";
-
-const lz = (num: number) => (num < 10 ? `0${num}` : num);
-
-const getDuration = (minutes: number): string => {
-  const durationHours = Math.floor(minutes / 60);
-  const durationRemainingMinutes = minutes % 60;
-  return `${durationHours}h ${lz(durationRemainingMinutes)} min`;
-};
+import { getDuration } from "@/utils/format/course_duration";
+import { getCourseRessources } from "@/services/timetable";
 
 const LessonDocument: Screen<"LessonDocument"> = ({ route, navigation }) => {
   const theme = useTheme();
@@ -58,18 +53,20 @@ const LessonDocument: Screen<"LessonDocument"> = ({ route, navigation }) => {
       fontFamily: "medium",
       fontSize: 16,
       lineHeight: 22,
-    }
+    },
   });
 
   const lesson = route.params.lesson as unknown as TimetableClass;
   const subjects = useClassSubjectStore();
   const [classSubjects, setClassSubjects] = useState<ClassSubject[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [ressource, setRessource] = useState<TimetableRessource[] | undefined>(undefined);
   const account = useCurrentAccount((store) => store.account!);
 
   const openUrl = (url: string) => {
     if (
       account.service === AccountService.EcoleDirecte &&
-			Platform.OS === "ios"
+      Platform.OS === "ios"
     ) {
       getAndOpenFile(account, url);
     } else {
@@ -81,16 +78,24 @@ const LessonDocument: Screen<"LessonDocument"> = ({ route, navigation }) => {
   };
 
   useEffect(() => {
-    setClassSubjects(
-      subjects.subjects.filter(
-        (b) =>
-          new Date(b.date).getDate() ===
-						new Date(lesson.startTimestamp).getDate() &&
-					new Date(b.date).getMonth() ===
-						new Date(lesson.startTimestamp).getMonth() &&
-					lesson.subject === b.subject,
-      ) ?? [],
-    );
+    const fetchData = async () => {
+      const ressource = await getCourseRessources(account, lesson);
+      setRessource(ressource);
+      setClassSubjects(
+        subjects.subjects.filter(
+          (b) =>
+            new Date(b.date).getDate() ===
+              new Date(lesson.startTimestamp).getDate() &&
+            new Date(b.date).getMonth() ===
+              new Date(lesson.startTimestamp).getMonth() &&
+            lesson.subject === b.subject,
+        ) ?? [],
+      );
+
+      setLoading(false);
+    };
+
+    fetchData();
   }, []);
 
   const [subjectData, setSubjectData] = useState({
@@ -100,7 +105,6 @@ const LessonDocument: Screen<"LessonDocument"> = ({ route, navigation }) => {
   });
 
   const fetchSubjectData = () => {
-    console.log("Fetching subject data for", lesson);
     const data = getSubjectData(lesson.title || "");
     setSubjectData(data);
   };
@@ -123,17 +127,17 @@ const LessonDocument: Screen<"LessonDocument"> = ({ route, navigation }) => {
           icon: <Clock />,
           text: "Début du cours",
           value:
-						formatDistance(new Date(lesson.startTimestamp), new Date(), {
-						  addSuffix: true,
-						  locale: fr,
-						}) +
-						" (à " +
-						new Date(lesson.startTimestamp).toLocaleTimeString("fr-FR", {
-						  hour: "2-digit",
-						  minute: "2-digit",
-						  hour12: false,
-						}) +
-						")",
+            formatDistance(new Date(lesson.startTimestamp), new Date(), {
+              addSuffix: true,
+              locale: fr,
+            }) +
+            " (à " +
+            new Date(lesson.startTimestamp).toLocaleTimeString("fr-FR", {
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: false,
+            }) +
+            ")",
           enabled: lesson.startTimestamp != null,
         },
         {
@@ -155,7 +159,7 @@ const LessonDocument: Screen<"LessonDocument"> = ({ route, navigation }) => {
           value: lesson.url,
           enabled: lesson.url != null,
         },
-      ]
+      ],
     },
     {
       title: "Contexte",
@@ -164,25 +168,25 @@ const LessonDocument: Screen<"LessonDocument"> = ({ route, navigation }) => {
           icon: <Building />,
           text: lesson.building?.includes(",") ? "Bâtiments" : "Bâtiment",
           value: lesson.building,
-          enabled: lesson.building != null,
+          enabled: Boolean(lesson.building?.trim()), // Check if lesson.building exists, is not null, and not empty
         },
         {
           icon: <DoorOpen />,
           text: lesson.room?.includes(",") ? "Salles de classe" : "Salle de classe",
           value: lesson.room?.split(", ").join("\n"),
-          enabled: lesson.room != null,
+          enabled: Boolean(lesson.room?.trim()), // Check if lesson.room exists, is not null, and not empty
         },
         {
-          icon: <PersonStanding />,
+          icon: <User2 />,
           text: lesson.teacher?.includes(",") ? "Professeurs" : "Professeur",
-          value: lesson.teacher,
-          enabled: lesson.teacher != null,
+          value: lesson.teacher || "Aucun",
+          enabled: Boolean(lesson.teacher?.trim()), // Check if lesson.teacher exists, is not null, and not empty.
         },
         {
           icon: <Users />,
           text: lesson.group?.includes(",") ? "Groupes" : "Groupe",
-          value: lesson.group,
-          enabled: lesson.group != null
+          value: lesson.group?.replace(/\[|\]/g, ""),
+          enabled: Boolean(lesson.group?.trim()), // Check if lesson.group exists, is not null, and not empty
         },
       ],
     },
@@ -208,11 +212,7 @@ const LessonDocument: Screen<"LessonDocument"> = ({ route, navigation }) => {
         height={110}
       >
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-          <View
-            style={{
-              marginRight: 4,
-            }}
-          >
+          <View style={{ marginRight: 4 }}>
             <Text
               style={{
                 fontSize: 28,
@@ -253,18 +253,20 @@ const LessonDocument: Screen<"LessonDocument"> = ({ route, navigation }) => {
           return (
             <View key={index}>
               <NativeListHeader label={info.title} key={index} />
-
               <NativeList>
                 {info.informations.map((item, index) => {
                   if (!item.enabled) {
                     return null;
                   }
-
                   return (
                     <NativeItem
                       key={index}
                       icon={item.icon}
-                      onPress={item.value && item.value.startsWith("http") ? () => Linking.openURL(item.value!) : void 0}
+                      onPress={
+                        item.value && item.value.startsWith("http")
+                          ? () => Linking.openURL(item.value!)
+                          : void 0
+                      }
                     >
                       <NativeText variant="subtitle">{item.text}</NativeText>
                       <NativeText variant="default">{item.value}</NativeText>
@@ -275,34 +277,135 @@ const LessonDocument: Screen<"LessonDocument"> = ({ route, navigation }) => {
             </View>
           );
         })}
-        {classSubjects.length > 0 && (
+        {loading && (
+          <ActivityIndicator
+            size="large"
+            color={theme.colors.primary}
+            style={{ marginTop: 10 }}
+          />
+        )}
+        {(classSubjects.length > 0 || (ressource?.length ?? 0) > 0) && (
           <View>
             <NativeListHeader label="Contenu de séance" />
             <NativeList>
               {classSubjects.map((subject, index) => {
                 return (
+                  <NativeItem key={"classSubject_" + index}>
+                    <HTMLView value={`<body>${subject.content}</body>`} stylesheet={stylesText} />
+                    {subject.attachments.map((attachment, index) => (
+                      <NativeItem
+                        key={"classSubject_attachement_" + index}
+                        onPress={() =>
+                          openUrl(
+                            `${attachment.name}\\${attachment.id}\\${attachment.kind}`,
+                          )
+                        }
+                        icon={<FileText />}
+                      >
+                        <NativeText variant="title" numberOfLines={2}>
+                          {attachment.name}
+                        </NativeText>
+                      </NativeItem>
+                    ))}
+                  </NativeItem>
+                );
+              })}
+
+              {ressource?.map((r, index) => {
+                let title = (r.title?.charAt(0).toUpperCase() ?? "") + (r.title?.slice(1) ?? ""); // S'assurer que la première lettre est en majuscule
+                let desc = r.description?.replace("\n\n", "\n").trim() ?? ""; // Remplacer les doubles sauts de ligne par un seul
+                let descText = desc.replace(/<[^>]*>/g, "").trim(); // Il peut arriver que le contenu soit vide, mais qu'il y ait du html tout de même
+                return (
                   <>
-                    <NativeItem key={index}>
-                      <HTMLView value={`<body>${subject.content}</body>`} stylesheet={stylesText} />
-                      {subject.attachments.map((attachment, index) => (
-                        <NativeItem
-                          key={index}
-                          onPress={() =>
-                            openUrl(
-                              `${attachment.name}\\${attachment.id}\\${attachment.kind}`,
-                            )
-                          }
-                          icon={<FileText />}
+                    <NativeItem key={"res_" + index}
+                      separator={r.files?.length ?? 0 > 0 ? true : false}
+                    >
+                      {index > 0 &&
+                        <View
+                          style={{
+                            height: 1,
+                            flex: 1,
+                            borderColor: theme.colors.text + "20",
+                            borderWidth: 1,
+                            borderRadius: 50,
+                            marginTop: 10,
+                            marginBottom: 10,
+                          }}
+                        />
+                      }
+                      { !!r.category && (
+                        <LinearGradient
+                          colors={[subjectData.color + "80", subjectData.color]}
+                          style={{
+                            borderRadius: 50,
+                            zIndex: 10,
+                            borderWidth: 1,
+                            borderColor: theme.colors.text + "20",
+                            width: "auto",
+                            alignSelf: "flex-start",
+                            marginBottom: title ? 0 : void 0,
+                          }}
                         >
-                          <NativeText variant="title" numberOfLines={2}>
-                            {attachment.name}
-                          </NativeText>
-                        </NativeItem>
-                      ))}
+                          <View
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              gap: 4,
+                              paddingVertical: 3,
+                              paddingHorizontal: 8,
+                              borderRadius: 8,
+                            }}
+                          >
+                            <NativeText style={{
+                              color: "#FFF",
+                              fontFamily: "semibold",
+                              fontSize: 15,
+                              lineHeight: 18,
+                            }}
+                            numberOfLines={1}
+                            >
+                              {r.category}
+                            </NativeText>
+                          </View>
+                        </LinearGradient>
+                      )}
+                      { !!title && (
+                        <NativeText variant="title">
+                          {title}
+                        </NativeText>
+                      )}
+                      { !!descText &&
+                        <HTMLView
+                          value={`<body>${desc}</body>`}
+                          stylesheet={stylesText}
+                          addLineBreaks={false}
+                          onLinkPress={url => openUrl(url) }
+                          key={"res_html_" + index}
+                        />
+                      }
                     </NativeItem>
+                    {(r.files?.length ?? 0) > 0 && (
+                      <>
+                        {r.files?.map((file, fileIndex) => (
+                          <NativeItem
+                            key={"res_attach" + fileIndex}
+                            onPress={() =>
+                              openUrl(file.url)
+                            }
+                            icon={<FileText />}
+                            separator={true}
+                          >
+                            <NativeText variant="title" numberOfLines={2}>
+                              {file.name}
+                            </NativeText>
+                          </NativeItem>
+                        ))}
+                      </>
+                    )}
                   </>
                 );
               })}
+
             </NativeList>
           </View>
         )}

@@ -20,7 +20,7 @@ import {
   NativeText,
 } from "@/components/Global/NativeComponents";
 import { Info } from "lucide-react-native";
-import { useTheme } from "@react-navigation/native";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
 import ButtonCta from "@/components/FirstInstallation/ButtonCta";
 import type { Screen } from "@/router/helpers/types";
 
@@ -29,6 +29,7 @@ import { useAccounts, useCurrentAccount } from "@/stores/account";
 import { AccountService, PronoteAccount } from "@/stores/account/types";
 import extract_pronote_name from "@/utils/format/extract_pronote_name";
 import defaultPersonalization from "@/services/pronote/default-personalization";
+import ResponsiveTextInput from "@/components/FirstInstallation/ResponsiveTextInput";
 
 export const Pronote2FA_Auth: Screen<"Pronote2FA_Auth"> = ({
   navigation,
@@ -151,6 +152,10 @@ export const Pronote2FA_Auth: Screen<"Pronote2FA_Auth"> = ({
 
       authentication: { ...refresh, deviceUUID: accountID },
       personalization: await defaultPersonalization(session),
+
+      identity: {},
+      serviceData: {},
+      providers: []
     };
 
     pronote.startPresenceInterval(session);
@@ -250,7 +255,7 @@ export const Pronote2FA_Auth: Screen<"Pronote2FA_Auth"> = ({
                   }}
                   key={index}
                 >
-                  <TextInput
+                  <ResponsiveTextInput
                     placeholder="0"
                     placeholderTextColor={theme.colors.text + "55"}
                     style={{
@@ -281,7 +286,7 @@ export const Pronote2FA_Auth: Screen<"Pronote2FA_Auth"> = ({
         <NativeListHeader label="Nom de l'appareil" />
         <NativeList>
           <NativeItem>
-            <TextInput
+            <ResponsiveTextInput
               placeholder="Nom de l'appareil"
               placeholderTextColor={theme.colors.text + "55"}
               value={deviceName}

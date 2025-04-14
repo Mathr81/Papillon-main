@@ -10,7 +10,6 @@ import {
   ScrollView,
   Image,
   Switch,
-  Alert,
   Platform,
   Modal,
 } from "react-native";
@@ -18,6 +17,7 @@ import React from "react";
 import ButtonCta from "@/components/FirstInstallation/ButtonCta";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {
+  BadgeX,
   Calendar,
   Camera, Carrot, Clock,
   Code, Cog,
@@ -36,6 +36,7 @@ import {PressableScale} from "react-native-pressable-scale";
 import * as Linking from "expo-linking";
 import * as FileSystem from "expo-file-system";
 import {AddonManifest} from "@/addons/types";
+import { useAlert } from "@/providers/AlertProvider";
 
 const SettingsAddons: Screen<"SettingsAddons"> = () => {
   let [ opened, setOpened ] = React.useState(false);
@@ -63,6 +64,8 @@ const SettingsAddons: Screen<"SettingsAddons"> = () => {
   }, []);
 
   const insets = useSafeAreaInsets();
+  const { showAlert } = useAlert();
+
   return (
     <View>
       <Modal
@@ -99,7 +102,7 @@ const SettingsAddons: Screen<"SettingsAddons"> = () => {
               <TriangleAlert size={32} color={"#BE0B00"}/>
               <View style={{flex: 1}}>
                 <NativeText variant={"title"} style={{flex: 1}}>Cette extension n'est pas signé</NativeText>
-                <NativeText variant={"subtitle"} style={{flex: 1}}>Les extensions non signé ne sont pas vérifiee par nos équipes. Vous êtes responsable de l'installation de celle-ci.</NativeText>
+                <NativeText variant={"subtitle"} style={{flex: 1}}>Les extensions non signées ne sont pas vérifiées par nos équipes. Tu es responsable de l'installation de celle-ci.</NativeText>
               </View>
             </View>
             <View style={{
@@ -207,7 +210,7 @@ const SettingsAddons: Screen<"SettingsAddons"> = () => {
                               permission.name == "PERM_EDIT_PREFERENCES" ? "Modifier les préférences de l'application":
                                 permission.name == "PERM_EDIT_STUDENT_INFO" ? "Modifier les informations de l'élève":
                                   permission.name == "PERM_SCHOOLDATA_CALENDAR" ? "Accèder au calendrier de l'élève":
-                                    permission.name == "PERM_SCHOOLDATA_AUTH" ? "Accéder au données d'authentification de votre compte principal (DANGEREUX)":
+                                    permission.name == "PERM_SCHOOLDATA_AUTH" ? "Accéder aux données d'authentification de ton compte principal (DANGEREUX)":
                                       permission.name == "PERM_SCHOOLDATA_GRADES" ? "Accéder aux notes de l'élève":
                                         permission.name == "PERM_SCHOOLDATA_NEWS" ? "Accéder aux actualités de l'établissement":
                                           permission.name == "PERM_SCHOOLDATA_TIMETABLE" ? "Accéder à l'emploi du temps de l'élève":
@@ -218,7 +221,7 @@ const SettingsAddons: Screen<"SettingsAddons"> = () => {
                       }
                     </NativeText>
                     <NativeText variant="subtitle">
-                      {(permission.name == "PERM_SCHOOLDATA_AUTH" ? "Cette autorisation transmet à l'extension les jetons de connexion vers vos services. Avec ceci, l'extension peut éxécuter n'importe qu'elle action. Soyez prudent.\n\n":"") + permission.reason}
+                      {(permission.name == "PERM_SCHOOLDATA_AUTH" ? "Cette autorisation transmet à l'extension les jetons de connexion vers tes services. Avec ceci, l'extension peut exécuter n'importe quelle action. Sois prudent.\n\n":"") + permission.reason}
                     </NativeText>
                   </NativeItem>
                 ))}
@@ -263,7 +266,7 @@ const SettingsAddons: Screen<"SettingsAddons"> = () => {
               Extensions
             </NativeText>
             <NativeText variant="subtitle">
-              Ajoutez des fonctions externes à Papillon.
+              Ajoute des fonctions externes à Papillon.
             </NativeText>
           </NativeItem>
         </NativeList>
@@ -292,7 +295,11 @@ const SettingsAddons: Screen<"SettingsAddons"> = () => {
               trailing={addon.error && (
                 <PressableScale
                   onPress={() => {
-                    Alert.alert(`Impossible de charger le plugin "${addon.name}"`, addon.error);
+                    showAlert({
+                      title: `Impossible de charger le plugin "${addon.name}"`,
+                      message: addon.error ?? "Erreur inconnue",
+                      icon: <BadgeX />,
+                    });
                   }}
                 >
                   <TriangleAlert
@@ -361,7 +368,7 @@ const SettingsAddons: Screen<"SettingsAddons"> = () => {
               Autoriser les sources peu fiables
             </NativeText>
             <NativeText variant="subtitle">
-              Attention, cela peut être dangereux pour votre appareil.
+              Attention, cela peut être dangereux pour ton appareil.
             </NativeText>
           </NativeItem>
         </NativeList>

@@ -1,7 +1,6 @@
-import { NativeText } from "@/components/Global/NativeComponents";
-import { useTheme } from "@react-navigation/native";
-import React, { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, Image, Platform, RefreshControl as RNRefreshControl, ScrollView, Text, View } from "react-native";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
+import React from "react";
+import { Image, Platform, RefreshControl as RNRefreshControl, ScrollView, Text, View } from "react-native";
 import { TimetableItem } from "./Item";
 import { createNativeWrapper } from "react-native-gesture-handler";
 
@@ -11,25 +10,21 @@ import Reanimated, {
   FadeOutUp
 } from "react-native-reanimated";
 
-import { Activity, Sofa, Utensils } from "lucide-react-native";
-import LessonsNoCourseItem from "./NoCourse";
-import { Timetable, TimetableClass } from "@/services/shared/Timetable";
+import { DoorOpen, Moon, Sofa, Utensils } from "lucide-react-native";
+import { TimetableClass } from "@/services/shared/Timetable";
 import { animPapillon } from "@/utils/ui/animations";
 import LessonsLoading from "./Loading";
 import MissingItem from "@/components/Global/MissingItem";
+import { getHolidayEmoji } from "@/utils/format/holidayEmoji";
+import { getDuration } from "@/utils/format/course_duration";
+import { OfflineWarning, useOnlineStatus } from "@/hooks/useOnlineStatus";
+
+const emoji = getHolidayEmoji();
 
 const RefreshControl = createNativeWrapper(RNRefreshControl, {
   disallowInterruption: true,
   shouldCancelWhenOutside: false,
 });
-
-const lz = (num: number) => (num < 10 ? `0${num}` : num);
-
-const getDuration = (minutes: number): string => {
-  const durationHours = Math.floor(minutes / 60);
-  const durationRemainingMinutes = minutes % 60;
-  return `${durationHours} h ${lz(durationRemainingMinutes)} min`;
-};
 
 interface PageProps {
   current: boolean
@@ -39,9 +34,21 @@ interface PageProps {
   paddingTop: number
   refreshAction: () => unknown
   weekExists: boolean
+  hasServiceSetup: boolean,
+  maxStart: number
+  maxEnd: number
 }
 
-export const Page = ({ day, date, current, paddingTop, refreshAction, loading, weekExists }: PageProps) => {
+export const Page = ({ day, date, current, paddingTop, refreshAction, loading, weekExists, hasServiceSetup, maxStart, maxEnd }: PageProps) => {
+  const { isOnline } = useOnlineStatus();
+
+  const dateMaxStart = new Date(date);
+  dateMaxStart.setHours(maxStart / 60);
+  dateMaxStart.setMinutes(maxStart % 60);
+  const dateMaxEnd = new Date(date);
+  dateMaxEnd.setHours(maxEnd / 60);
+  dateMaxEnd.setMinutes(maxEnd % 60);
+
   return (
     <ScrollView
       style={{
@@ -70,6 +77,25 @@ export const Page = ({ day, date, current, paddingTop, refreshAction, loading, w
             width: "100%"
           }}
         >
+          {!isOnline && <OfflineWarning cache={true} />}
+
+          {day[0] &&
+            day[0].startTimestamp - dateMaxStart.getTime() > 900000 && (
+            <SeparatorCourse
+              i={0}
+              start={dateMaxStart.getTime()}
+              end={day[0].startTimestamp}
+              // @ts-expect-error
+              icon={<Moon />}
+              label={"Début des cours à " + new Date(day[0].startTimestamp).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+              showDuration={true}
+            />
+          )}
+
+
           {day && day.length > 0 && day[0].type !== "vacation" && day.map((item, i) => (
             <View key={item.startTimestamp + i.toString()} style={{ gap: 10 }}>
               <TimetableItem key={item.startTimestamp} item={item} index={i} />
@@ -84,6 +110,22 @@ export const Page = ({ day, date, current, paddingTop, refreshAction, loading, w
               )}
             </View>
           ))}
+
+          {day[day.length - 1] &&
+            dateMaxEnd.getTime() - day[day.length - 1].endTimestamp > 900000 && (
+            <SeparatorCourse
+              i={day.length}
+              start={day[day.length - 1].endTimestamp}
+              end={dateMaxEnd.getTime()}
+              // @ts-expect-error
+              icon={<DoorOpen />}
+              label={"Fin des cours à " + new Date(day[day.length - 1].endTimestamp).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+              showDuration={false}
+            />
+          )}
         </View>
       }
 
@@ -99,12 +141,12 @@ export const Page = ({ day, date, current, paddingTop, refreshAction, loading, w
         </Reanimated.View>
       )}
 
-      {day && day.length === 0 && current && !loading && (
+      {hasServiceSetup && day && day.length === 0 && current && !loading && (
         weekExists && (new Date(date).getDay() == 6 || new Date(date).getDay() == 0) ? (
           <MissingItem
             emoji="🌴"
             title="C'est le week-end !"
-            description="Profitez de votre week-end, il n'y a pas de cours aujourd'hui."
+            description="Profite de ton week-end, il n'y a pas de cours aujourd'hui."
             entering={animPapillon(FadeInDown)}
             exiting={animPapillon(FadeOut)}
           />
@@ -119,14 +161,21 @@ export const Page = ({ day, date, current, paddingTop, refreshAction, loading, w
         )
       )}
 
-      {day.length === 1 && current && !loading && (day[0].type === "vacation" ? <MissingItem
-        emoji="🏝️"
+      {hasServiceSetup && day.length === 1 && current && !loading && (day[0].type === "vacation" ? <MissingItem
+        emoji={emoji}
         title="C'est les vacances !"
-        description="Profitez de vos vacances, à bientôt."
+        description="Profite de tes vacances, à bientôt."
         entering={animPapillon(FadeInDown)}
         exiting={animPapillon(FadeOut)}
       />: <></>
       )}
+
+      {!hasServiceSetup && <MissingItem
+        title="Aucun service connecté"
+        description="Tu n'as pas encore paramétré de service pour cette fonctionnalité."
+        emoji="🤷"
+        style={{ marginTop: 16 }}
+      />}
     </ScrollView>
   );
 };
@@ -134,8 +183,11 @@ export const Page = ({ day, date, current, paddingTop, refreshAction, loading, w
 const SeparatorCourse: React.FC<{
   i: number
   start: number
-  end: number
-}> = ({ i, start, end }) => {
+  end: number,
+  icon?: React.FC<any>
+  label?: string,
+  showDuration?: boolean
+}> = ({ i, start, end, icon, label, showDuration= true }) => {
   const { colors } = useTheme();
   const startHours = new Date(start).getHours();
   return (
@@ -188,12 +240,18 @@ const SeparatorCourse: React.FC<{
           }}
         />
 
-        {startHours > 11 &&
+        {!icon ? (startHours >= 11 &&
           startHours < 14 ? (
             <Utensils size={20} color={colors.text} />
           ) : (
             <Sofa size={20} color={colors.text} />
-          )}
+          )) : (
+        // @ts-expect-error
+          React.cloneElement(icon, {
+            color: colors.text,
+            size: 20,
+          })
+        )}
         <Text
           numberOfLines={1}
           style={{
@@ -203,25 +261,27 @@ const SeparatorCourse: React.FC<{
             color: colors.text,
           }}
         >
-          {startHours > 11 &&
-            startHours < 14
+          {label ? label : startHours >= 9 &&
+            startHours < 12
             ? "Pause méridienne"
             : "Pas de cours"}
         </Text>
 
-        <Text
-          numberOfLines={1}
-          style={{
-            fontFamily: "medium",
-            fontSize: 15,
-            opacity: 0.5,
-            color: colors.text,
-          }}
-        >
-          {getDuration(
-            Math.round((end - start) / 60000)
-          )}
-        </Text>
+        {showDuration && (
+          <Text
+            numberOfLines={1}
+            style={{
+              fontFamily: "medium",
+              fontSize: 15,
+              opacity: 0.5,
+              color: colors.text,
+            }}
+          >
+            {getDuration(
+              Math.round((end - start) / 60000)
+            )}
+          </Text>
+        )}
       </View>
     </Reanimated.View>
   );

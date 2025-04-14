@@ -1,13 +1,14 @@
 import React, { Fragment, useRef } from "react";
-import { ScrollView, TextInput, Alert, KeyboardAvoidingView, StyleSheet } from "react-native";
+import { ScrollView, TextInput, KeyboardAvoidingView, StyleSheet } from "react-native";
 import type { Screen } from "@/router/helpers/types";
-import { useTheme } from "@react-navigation/native";
-import { Code } from "lucide-react-native";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
+import { BadgeHelp, Code, Trash2, Undo2 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeItem, NativeList, NativeListHeader, NativeText } from "@/components/Global/NativeComponents";
 import { useFlagsStore } from "@/stores/flags";
 import { useCurrentAccount } from "@/stores/account";
 import { AccountService } from "@/stores/account/types";
+import { useAlert } from "@/providers/AlertProvider";
 
 const SettingsFlags: Screen<"SettingsFlags"> = ({ navigation }) => {
   const { flags, remove, set } = useFlagsStore();
@@ -16,6 +17,8 @@ const SettingsFlags: Screen<"SettingsFlags"> = ({ navigation }) => {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const textInputRef = useRef<TextInput>(null);
+
+  const { showAlert } = useAlert();
 
   const isBase64Image = (str: string) => {
     return typeof str === "string" && str.startsWith("data:image/jpeg");
@@ -61,19 +64,32 @@ const SettingsFlags: Screen<"SettingsFlags"> = ({ navigation }) => {
   };
 
   const addFlag = (flag: string) => {
+    if (!flag.trim()) return;
+    console.log("Flag ajouté :", flag);
     set(flag);
     textInputRef.current?.clear();
   };
 
   const confirmRemoveFlag = (flag: string) => {
-    Alert.alert(
-      "Supprimer le flag",
-      `Voulez-vous vraiment supprimer le flag "${flag}" ?`,
-      [
-        { text: "Annuler" },
-        { text: "Supprimer", onPress: () => remove(flag), style: "destructive" }
+    showAlert({
+      title: "Supprimer le flag",
+      message: `Veux-tu vraiment supprimer le flag "${flag}" ?`,
+      icon: <BadgeHelp />,
+      actions: [
+        {
+          title: "Annuler",
+          icon: <Undo2 />,
+          primary: false,
+        },
+        {
+          title: "Supprimer",
+          icon: <Trash2 />,
+          onPress: () => remove(flag),
+          danger: true,
+          delayDisable: 3,
+        }
       ]
-    );
+    });
   };
 
   return (
@@ -83,12 +99,12 @@ const SettingsFlags: Screen<"SettingsFlags"> = ({ navigation }) => {
         <NativeList>
           <NativeItem>
             <TextInput
-              style={[styles.input, { color: colors.text,
-                fontFamily: "Menlo", }]}
+              style={[styles.input, { color: colors.text, fontFamily: "Menlo" }]}
               placeholder="Nouveau flag"
               placeholderTextColor={colors.text + "80"}
               ref={textInputRef}
               onSubmitEditing={(e) => addFlag(e.nativeEvent.text)}
+              onBlur={(e) => addFlag(e.nativeEvent.text)}
             />
           </NativeItem>
         </NativeList>
@@ -113,7 +129,8 @@ const SettingsFlags: Screen<"SettingsFlags"> = ({ navigation }) => {
         {renderAccountSection("Informations générales", {
           name: account.name,
           schoolName: account.schoolName,
-          className: account.className
+          className: account.className,
+          localID: account.localID,
         })}
 
         {renderAccountSection("Détails de l'authentification", account.authentication)}

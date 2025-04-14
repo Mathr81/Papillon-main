@@ -1,4 +1,4 @@
-import { type ReactNode, type Dispatch, type SetStateAction, useState } from "react";
+import { type ReactNode, useState } from "react";
 import type { Attendance } from "@/services/shared/Attendance";
 import type { Absence } from "@/services/shared/Absence";
 
@@ -8,7 +8,8 @@ import { FadeIn, FadeInUp, FadeOut, FadeOutDown } from "react-native-reanimated"
 import { NativeItem, NativeList, NativeText } from "@/components/Global/NativeComponents";
 import { leadingZero } from "@/utils/format/attendance_time";
 import { animPapillon } from "@/utils/ui/animations";
-import { useTheme } from "@react-navigation/native";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
+import { timestampToString } from "@/utils/format/DateHelper";
 
 interface AttendanceItemProps {
   title: string
@@ -17,7 +18,7 @@ interface AttendanceItemProps {
   missed?: { hours: number, minutes: number }
 }
 
-const NO_JUSTICATION = "Sans justification";
+const NO_JUSTICATION = "Aucune description";
 
 const AttendanceItem: React.FC<AttendanceItemProps> = ({
   title,
@@ -74,17 +75,59 @@ const AttendanceItem: React.FC<AttendanceItemProps> = ({
         let totalTime = "";
         if ("hours" in item) {
           const [hours, minutes] = item.hours.split("h").map(Number);
-          totalTime = hours + "h " + leadingZero(minutes) + "min";
+          if (hours === 0) {
+            totalTime = `${leadingZero(minutes)} min`;
+          } else {
+            totalTime = `${hours}h ${leadingZero(minutes)}min`;
+          }
         }
         else if ("duration" in item) {
           totalTime = item.duration + " min";
         }
 
-        totalTime = totalTime.replace("0h ", "");
-
         const timestamp = "fromTimestamp" in item ? item.fromTimestamp : item.timestamp;
+        const toTimestamp = "toTimestamp" in item ? item.toTimestamp : null;
         const not_justified = "justified" in item && !item.justified;
         const justification = "reasons" in item ? item.reasons || NO_JUSTICATION : "reason" in item ? item.reason.text : NO_JUSTICATION;
+        const dateString = toTimestamp && new Date(timestamp).toLocaleDateString("fr-FR") === new Date(toTimestamp).toLocaleDateString("fr-FR")
+          ? `le ${new Date(timestamp).toLocaleDateString("fr-FR", {
+            day: "2-digit",
+            month: "short",
+            year: new Date(timestamp).getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
+          })} de ${new Date(timestamp).toLocaleTimeString("fr-FR", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })} à ${new Date(toTimestamp).toLocaleTimeString("fr-FR", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}`
+          : toTimestamp
+            ? `du ${new Date(timestamp).toLocaleDateString("fr-FR", {
+              weekday: "long",
+              day: "2-digit",
+              month: "short",
+              year: new Date(timestamp).getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
+            })} à ${new Date(timestamp).toLocaleTimeString("fr-FR", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}\nau ${new Date(toTimestamp).toLocaleDateString("fr-FR", {
+              weekday: "long",
+              day: "2-digit",
+              month: "short",
+              year: new Date(toTimestamp).getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
+            })} à ${new Date(toTimestamp).toLocaleTimeString("fr-FR", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}`
+            : `${new Date(timestamp).toLocaleDateString("fr-FR", {
+              weekday: "long",
+              day: "2-digit",
+              month: "short",
+              year: new Date(timestamp).getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
+            })} à ${new Date(timestamp).toLocaleTimeString("fr-FR", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}`;
 
         return (
           <NativeItem
@@ -109,22 +152,25 @@ const AttendanceItem: React.FC<AttendanceItemProps> = ({
               {justification}
             </NativeText>
 
-            {not_justified && (
-              <NativeText variant="default" style={{
+            {not_justified ? (
+              <NativeText variant="overtitle" style={{
                 color: "#D10000",
               }}>
                 Non justifié
               </NativeText>
+            ) : (
+              <NativeText variant="overtitle" style={{
+                color: "#29947A",
+              }}>
+                Justifié
+              </NativeText>
             )}
 
+            <NativeText variant="default">
+              {timestampToString(timestamp)}
+            </NativeText>
             <NativeText variant="subtitle">
-              {new Date(timestamp).toLocaleDateString("fr-FR", {
-                weekday: "long",
-                month: "short",
-                day: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+              {dateString}
             </NativeText>
           </NativeItem>
         );

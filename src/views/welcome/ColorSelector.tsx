@@ -1,21 +1,22 @@
-import React, { useLayoutEffect, useState, useEffect } from "react";
+import React, { useLayoutEffect } from "react";
 import { View, StyleSheet, Pressable, Platform } from "react-native";
 import MaskStarsColored from "@/components/FirstInstallation/MaskStarsColored";
-import { useTheme } from "@react-navigation/native";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
 import PapillonShineBubble from "@/components/FirstInstallation/PapillonShineBubble";
 import type { Screen } from "@/router/helpers/types";
 import ButtonCta from "@/components/FirstInstallation/ButtonCta";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCurrentAccount } from "@/stores/account";
 import { LinearGradient } from "expo-linear-gradient";
-import { Audio } from "expo-av";
-import Reanimated, { ZoomIn, ZoomOut, LinearTransition, FadeIn, FadeOut, FlipInXDown, FadeOutUp } from "react-native-reanimated";
+import Reanimated, { ZoomIn, LinearTransition, FadeIn, FadeOut, FadeOutUp, FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { getIconName, setIconName } from "@candlefinance/app-icon";
 
 import colorsList from "@/utils/data/colors.json";
 import { removeColor } from "../settings/SettingsIcons";
-import { expoGoWrapper } from "@/utils/native/expoGoAlert";
+import { isExpoGo } from "@/utils/native/expoGoAlert";
+import useSoundHapticsWrapper from "@/utils/native/playSoundHaptics";
+import { animPapillon } from "@/utils/ui/animations";
 
 type Color = typeof colorsList[number];
 
@@ -26,9 +27,11 @@ const ColorSelector: Screen<"ColorSelector"> = ({ route, navigation }) => {
   const account = useCurrentAccount(store => store.account);
   const mutateProperty = useCurrentAccount(store => store.mutateProperty);
   const settings = route.params?.settings || false;
+  const { playHaptics, playSound } = useSoundHapticsWrapper();
+  const LEson003 = require("@/../assets/sound/click_003.wav");
+  const LEson6 = require("@/../assets/sound/6.wav");
 
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
-  const [sound2, setSound2] = useState<Audio.Sound | null>(null);
+  const hasProfilePic = account && account?.personalization && account?.personalization.profilePictureB64 !== undefined && account?.personalization.profilePictureB64.trim() !== "";
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -38,53 +41,18 @@ const ColorSelector: Screen<"ColorSelector"> = ({ route, navigation }) => {
     });
   }, [navigation]);
 
-  useEffect(() => {
-    const loadSound = async () => {
-      const { sound } = await Audio.Sound.createAsync(
-        require("@/../assets/sound/6.wav")
-      );
-      setSound(sound);
-
-      const sound2 = await Audio.Sound.createAsync(
-        require("@/../assets/sound/click_003.wav")
-      );
-      setSound2(sound2.sound);
-    };
-
-    loadSound();
-
-    return () => {
-      if (sound) {
-        sound.unloadAsync();
-      }
-      if (sound2) {
-        sound2.unloadAsync();
-      }
-    };
-  }, []);
-
-  const playSound = async () => {
-    if (sound) {
-      await sound.replayAsync();
-    }
-  };
-
-  const playSound2 = async () => {
-    if (sound) {
-      await sound2?.replayAsync();
-    }
-  };
-
   const messages = colorsList.map((color) => ({
     [color.hex.primary]: color.description
   })).reduce((acc, cur) => ({ ...acc, ...cur }), {} as { [key: string]: string });
 
   const selectColor = (color: Color) => {
     mutateProperty("personalization", { color });
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    playSound2();
+    playHaptics("notification", {
+      notification: Haptics.NotificationFeedbackType.Success,
+    });
+    playSound(LEson003);
 
-    expoGoWrapper(() => {
+    if (!isExpoGo()) {
       getIconName().then((currentIcon) => {
         if (currentIcon.includes("_Dynamic_")) {
           const mainColor = color.hex.primary;
@@ -96,7 +64,7 @@ const ColorSelector: Screen<"ColorSelector"> = ({ route, navigation }) => {
           setIconName(iconConstructName);
         }
       });
-    });
+    };
   };
 
   const ColorButton: React.FC<{ color: Color }> = ({ color }) => (
@@ -127,8 +95,8 @@ const ColorSelector: Screen<"ColorSelector"> = ({ route, navigation }) => {
               zIndex: -99,
             }
           ]}
-          entering={ZoomIn.springify().mass(1).stiffness(150)}
-          exiting={ZoomOut}
+          entering={animPapillon(ZoomIn)}
+          exiting={FadeOut.duration(150)}
         />
       )}
     </View>
@@ -165,6 +133,7 @@ const ColorSelector: Screen<"ColorSelector"> = ({ route, navigation }) => {
         message={"Quelle est ta couleur préférée ?"}
         numberOfLines={1}
         width={280}
+        offsetTop={"10%"}
       />
       <MaskStarsColored color={account?.personalization?.color?.hex.primary || colors.text}/>
       <View style={styles.colors}>
@@ -176,19 +145,21 @@ const ColorSelector: Screen<"ColorSelector"> = ({ route, navigation }) => {
         </View>
 
         <Reanimated.View
-          layout={LinearTransition}
-          entering={FlipInXDown.springify().delay(50)}
-          exiting={FadeOutUp.springify()}
-          key={account?.personalization?.color?.hex.primary || ""}
+          layout={animPapillon(LinearTransition)}
           style={[styles.message, {
             backgroundColor: account?.personalization?.color?.hex.primary + "33",
             overflow: "hidden",
             alignItems: "center",
             justifyContent: "center",
-            alignSelf: "center"}]}
+            alignSelf: "center"
+          }]}
         >
           <Reanimated.Text
-            layout={LinearTransition.springify().stiffness(150)}
+            layout={animPapillon(LinearTransition)}
+            entering={animPapillon(FadeInDown)}
+            exiting={animPapillon(FadeOutUp)}
+
+            key={account?.personalization?.color?.hex.primary || ""}
             style={{
               color: account?.personalization?.color?.hex.primary || "",
               fontFamily: "semibold",
@@ -213,12 +184,21 @@ const ColorSelector: Screen<"ColorSelector"> = ({ route, navigation }) => {
       >
         <ButtonCta
           primary
-          value="Finaliser"
+          value={settings ? "Sauvegarder" : !hasProfilePic ? "Continuer" : "Finaliser"}
           onPress={async () => {
             if (!settings) {
-              await playSound();
+              if(!hasProfilePic) {
+                navigation.navigate("ProfilePic");
+                return;
+              }
+              else {
+                playSound(LEson6);
+              }
             }
-            navigation.navigate("AccountStack", {onboard: true});
+            navigation.reset({
+              index: 0,
+              routes: [{ name: "AccountStack" }],
+            });
           }}
           disabled={!account?.personalization?.color}
           style={{

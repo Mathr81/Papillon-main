@@ -1,7 +1,7 @@
 import React from "react";
 import { ScrollView, } from "react-native";
 import type { Screen } from "@/router/helpers/types";
-import { useTheme } from "@react-navigation/native";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
 import { Star } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import PapillonShineBubble from "@/components/FirstInstallation/PapillonShineBubble";
@@ -26,10 +26,10 @@ const ExternalAccountSelectMethod: Screen<"ExternalAccountSelectMethod"> = ({ na
       }}
     >
       <PapillonShineBubble
-        message={`Sélectionnez votre méthode de connexion au service ${route.params.service === "Other" ? "(autre)" : AccountService[route.params.service]}`}
+        message={`Sélectionne ta méthode de connexion au service ${route.params.service === "Other" ? "(autre)" : AccountService[route.params.service]}`}
         width={300}
         numberOfLines={2}
-        offsetTop={insets.top}
+        offsetTop={"15%"}
       />
 
       <NativeList>
@@ -48,10 +48,10 @@ const ExternalAccountSelectMethod: Screen<"ExternalAccountSelectMethod"> = ({ na
             disabled
           >
             <NativeText>
-              Connexion via PRONOTE
+              Connexion automatique via PRONOTE
             </NativeText>
             <NativeText variant="subtitle">
-              Connexion automatique via PRONOTE
+              Disponible prochainement
             </NativeText>
           </NativeItem>
         )}
@@ -67,13 +67,16 @@ const ExternalAccountSelectMethod: Screen<"ExternalAccountSelectMethod"> = ({ na
             case AccountService.Izly:
               navigation.navigate("ExternalIzlyLogin");
               break;
+            case AccountService.Alise:
+              navigation.navigate("ExternalAliseLogin");
+              break;
           }
         }}>
           <NativeText>
             Connexion manuelle
           </NativeText>
           <NativeText variant="subtitle">
-            Entrez vos identifiants manuellement
+            Entre tes identifiants manuellement
           </NativeText>
         </NativeItem>
       </NativeList>

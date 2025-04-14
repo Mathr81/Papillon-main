@@ -3,8 +3,9 @@ import { View } from "react-native";
 import { NativeList, NativeText } from "@/components/Global/NativeComponents";
 import { leadingZero } from "@/utils/format/attendance_time";
 import { animPapillon } from "@/utils/ui/animations";
-import { FadeIn, FadeOut } from "react-native-reanimated";
-import { useTheme } from "@react-navigation/native";
+import Reanimated, { FadeIn, FadeOut } from "react-native-reanimated";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
+import AnimatedNumber from "@/components/Global/AnimatedNumber";
 
 interface TotalMissedProps {
   totalMissed: {
@@ -36,23 +37,24 @@ const TotalMissed = ({ totalMissed }: TotalMissedProps) => {
         }}
       >
         <View>
-          <View
+          <Reanimated.View
             style={{
               flexDirection: "row",
               gap: 5,
               alignItems: "flex-end",
+              marginLeft: 2,
             }}
           >
-            <NativeText
+            <AnimatedNumber
+              value={totalMissed.total.hours}
               style={{
                 fontSize: 28,
                 lineHeight: 28,
                 fontFamily: "semibold",
               }}
-            >
-              {totalMissed.total.hours}
-            </NativeText>
+            />
             <NativeText
+              animated
               style={{
                 fontSize: 18,
                 lineHeight: 18,
@@ -62,7 +64,7 @@ const TotalMissed = ({ totalMissed }: TotalMissedProps) => {
             >
               h {leadingZero(totalMissed.total.minutes)}
             </NativeText>
-          </View>
+          </Reanimated.View>
           <NativeText
             style={{
               color: theme.colors.text + "88",
@@ -83,15 +85,14 @@ const TotalMissed = ({ totalMissed }: TotalMissedProps) => {
               alignItems: "flex-end",
             }}
           >
-            <NativeText
+            <AnimatedNumber
+              value={totalMissed.unJustified.hours}
               style={{
                 fontSize: 28,
                 lineHeight: 28,
                 color: (totalMissed.unJustified.hours > 0) ? "#D10000" : theme.colors.text,
               }}
-            >
-              {totalMissed.unJustified.hours}
-            </NativeText>
+            />
             <NativeText
               style={{
                 fontSize: 18,

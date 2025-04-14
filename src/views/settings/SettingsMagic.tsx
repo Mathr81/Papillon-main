@@ -1,12 +1,12 @@
 import React from "react";
-import { Text, ScrollView, View, StyleSheet, Switch } from "react-native";
-import { useTheme } from "@react-navigation/native";
+import { ScrollView, Switch } from "react-native";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
 import type { Screen } from "@/router/helpers/types";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import important_json from "@/utils/magic/regex/important.json"; // Ensure this file contains valid regex patterns
+// Ensure this file contains valid regex patterns
 import MagicContainerCard from "@/components/Settings/MagicContainerCard";
-import { NativeIcon, NativeIconGradient, NativeItem, NativeList, NativeListHeader, NativeText } from "@/components/Global/NativeComponents";
-import { ArrowUpNarrowWide, BookDashed, Brain } from "lucide-react-native";
+import { NativeIconGradient, NativeItem, NativeList, NativeListHeader, NativeText } from "@/components/Global/NativeComponents";
+import { ArrowUpNarrowWide, BookDashed } from "lucide-react-native";
 import { useCurrentAccount } from "@/stores/account";
 
 const SettingsMagic: Screen<"SettingsMagic"> = ({ navigation }) => {
@@ -29,6 +29,13 @@ const SettingsMagic: Screen<"SettingsMagic"> = ({ navigation }) => {
         <NativeItem
           trailing={
             <Switch
+              trackColor={
+                {
+                  false: colors.border,
+                  true: colors.primary
+                }
+              }
+              thumbColor={theme.dark ? colors.text : colors.background}
               value={account?.personalization?.MagicNews ?? false}
               onValueChange={(value) => mutateProperty("personalization", { MagicNews: value })}
             />
@@ -54,6 +61,13 @@ const SettingsMagic: Screen<"SettingsMagic"> = ({ navigation }) => {
         <NativeItem
           trailing={
             <Switch
+              trackColor={
+                {
+                  false: colors.border,
+                  true: colors.primary
+                }
+              }
+              thumbColor={theme.dark ? colors.text : colors.background}
               value={account?.personalization?.MagicHomeworks ?? false}
               onValueChange={(value) => mutateProperty("personalization", { MagicHomeworks: value })}
             />

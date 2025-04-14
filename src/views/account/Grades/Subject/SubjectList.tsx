@@ -4,29 +4,27 @@ import {
   NativeText,
 } from "@/components/Global/NativeComponents";
 import { getSubjectData } from "@/services/shared/Subject";
-import { animPapillon } from "@/utils/ui/animations";
 import React, { useEffect, useState } from "react";
 import { FlatList, View } from "react-native";
-import Reanimated, {
-  FadeInDown,
-  FadeInUp,
-  FadeOutUp,
-} from "react-native-reanimated";
+import Reanimated, { FadeIn, FadeInDown, FadeOut, FadeOutUp } from "react-native-reanimated";
 import SubjectTitle from "./SubjectTitle";
 import { type Grade, type GradesPerSubject } from "@/services/shared/Grade";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RouteParameters } from "@/router/helpers/types";
+import { anim2Papillon } from "@/utils/ui/animations";
 
 interface SubjectItemProps {
   subject: GradesPerSubject;
   allGrades: Grade[];
   navigation: NativeStackNavigationProp<RouteParameters, keyof RouteParameters>;
+  index?: number;
 }
 
 const SubjectItem: React.FC<SubjectItemProps> = ({
   subject,
   allGrades,
   navigation,
+  index,
 }) => {
   const [subjectData, setSubjectData] = useState({
     color: "#888888",
@@ -43,11 +41,18 @@ const SubjectItem: React.FC<SubjectItemProps> = ({
     fetchSubjectData();
   }, [subject.average.subjectName]);
 
+  if (!subjectData) {
+    return null;
+  }
+
+  index = index || 0;
+
   return (
     <NativeList
       animated
-      entering={animPapillon(FadeInUp)}
-      exiting={animPapillon(FadeOutUp)}
+      key={subject.average.subjectName+"subjectItem"}
+      entering={index < 3 && anim2Papillon(FadeInDown).duration(300).delay(80 * index)}
+      exiting={index < 3 && anim2Papillon(FadeOutUp).duration(100).delay(80 * index)}
     >
       <SubjectTitle
         navigation={navigation}
@@ -68,7 +73,12 @@ const SubjectItem: React.FC<SubjectItemProps> = ({
             }}
           />
         )}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => {
+          if (!item.description) {
+            return item.id + "_" + Math.random();
+          }
+          return item.id;
+        }}
         removeClippedSubviews={true}
         maxToRenderPerBatch={10}
         initialNumToRender={8}
@@ -88,9 +98,9 @@ interface SubjectGradeItemProps {
 const SubjectGradeItem: React.FC<SubjectGradeItemProps> = ({ subject, grade, index, onPress }) => {
   return (
     <Reanimated.View
-      key={grade.id + index}
-      entering={animPapillon(FadeInDown).delay(50 * index + 100)}
-      exiting={animPapillon(FadeOutUp).delay(50 * index)}
+      entering={FadeIn.duration(100)}
+      exiting={FadeOut.duration(100)}
+      key={grade.id + index + "subjectlistname"}
     >
       <NativeItem
         separator={index < subject.grades.length - 1}
@@ -135,9 +145,7 @@ const SubjectGradeItem: React.FC<SubjectGradeItemProps> = ({ subject, grade, ind
                 fontFamily: "medium",
               }}
             >
-              {typeof grade.student.value === "number"
-                ? grade.student.value.toFixed(2)
-                : "N. not"}
+              {grade.student.disabled ? (grade.student.status === null ? "N. Not" : grade.student.status) : grade.student.value?.toFixed(2)}
             </NativeText>
             <NativeText
               style={{

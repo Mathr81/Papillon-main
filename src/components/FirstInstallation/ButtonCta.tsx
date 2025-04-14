@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { Text, Pressable, StyleSheet, type StyleProp, type ViewStyle } from "react-native";
 import Reanimated, { Easing, useSharedValue, withTiming } from "react-native-reanimated";
-import { useTheme } from "@react-navigation/native";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
 import * as Haptics from "expo-haptics";
+import useSoundHapticsWrapper from "@/utils/native/playSoundHaptics";
 
 const ButtonCta: React.FC<{
   value: string
@@ -21,6 +22,7 @@ const ButtonCta: React.FC<{
   backgroundColor,
   icon,
 }) => {
+  const { playHaptics } = useSoundHapticsWrapper();
   const { colors } = useTheme();
 
   const [pressed, setPressed] = useState(false);
@@ -41,7 +43,9 @@ const ButtonCta: React.FC<{
       scale.value = withTiming(1, { duration: 0, easing: Easing.linear });
       scale.value = withTiming(0.95, { duration: 50, easing: Easing.linear });
       opacity.value = withTiming(0.7, { duration: 10, easing: Easing.linear });
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      playHaptics("impact", {
+        impact: Haptics.ImpactFeedbackStyle.Heavy,
+      });
     }
     else {
       scale.value = withTiming(1, { duration: 100, easing: Easing.linear });
@@ -59,7 +63,7 @@ const ButtonCta: React.FC<{
       <Pressable
         style={[
           styles.button,
-          primary ? void 0 : styles.secondary,
+          (primary && !disabled) ? styles.primary : styles.secondary,
           { backgroundColor: backgroundColor },
           {
             borderColor: colors.border,
@@ -84,13 +88,18 @@ const ButtonCta: React.FC<{
 const styles = StyleSheet.create({
   button: {
     minWidth: "100%",
-    height: 48,
-    borderRadius: 12,
+    maxWidth: 500,
+    height: 46,
+    borderRadius: 120,
     borderCurve: "continuous",
     justifyContent: "center",
     alignItems: "center",
     gap: 8,
     flexDirection: "row",
+  },
+
+  primary: {
+    elevation: 3,
   },
 
   secondary: {
@@ -99,7 +108,7 @@ const styles = StyleSheet.create({
   },
 
   text: {
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: "semibold",
     letterSpacing: 1,
     textTransform: "uppercase",

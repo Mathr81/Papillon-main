@@ -2,10 +2,11 @@ import { Image, Text, View } from "react-native";
 
 import { Account } from "@/stores/account/types";
 import { defaultProfilePicture } from "@/utils/ui/default-profile-picture";
-import { useTheme } from "@react-navigation/native";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
 import { LinearGradient } from "expo-linear-gradient";
 import { Pen } from "lucide-react-native";
 import { PressableScale } from "react-native-pressable-scale";
+import React from "react";
 
 const AccountContainerCard = ({ account, onPress }: {
   account: Account

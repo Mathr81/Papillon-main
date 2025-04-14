@@ -1,12 +1,11 @@
-import { useTheme } from "@react-navigation/native";
-import { PieChart, Pizza } from "lucide-react-native";
-import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
+import { Pizza } from "lucide-react-native";
+import React, { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { Text, View } from "react-native";
 import Reanimated, {
   LinearTransition
 } from "react-native-reanimated";
 
-import AnimatedNumber from "@/components/Global/AnimatedNumber";
 import { WidgetProps } from "@/components/Home/Widget";
 import { useCurrentAccount } from "@/stores/account";
 import QRCode from "react-native-qrcode-svg";
@@ -15,6 +14,8 @@ import { qrcodeFromExternal } from "@/services/qrcode";
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { RouteParameters } from "./../../router/helpers/types";
+import { STORE_THEMES } from "@/views/account/Restaurant/Cards/StoreThemes";
+import { formatCardIdentifier, ServiceCard } from "@/utils/external/restaurant";
 
 type NavigationProps = StackNavigationProp<RouteParameters, "RestaurantQrCode">;
 
@@ -26,35 +27,88 @@ const RestaurantQRCodeWidget = forwardRef(({
   const theme = useTheme();
   const { colors } = theme;
 
-  const account = useCurrentAccount((store) => store.account);
   const linkedAccounts = useCurrentAccount(store => store.linkedAccounts);
-  const [qrcode, setQRCodes] = useState<string[] | null>(null);
   const navigation = useNavigation<NavigationProps>();
+  const [allCards, setAllCards] = useState<Array<ServiceCard> | null>(null);
+  const [currentCardIndex, setCurrentCardIndex] = useState(0);
 
   useImperativeHandle(ref, () => ({
     handlePress: () => {
-      navigation.navigate("RestaurantQrCode", { QrCodes: qrcode ?? [] });
+      if (currentCard) {
+        navigation.navigate("RestaurantQrCode", { card: currentCard });
+      }
     }
   }));
+
+  const getWeekNumber = (date: Date) => {
+    const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+    const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
+    return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+  };
 
   useEffect(() => {
     void async function () {
       setHidden(true);
       setLoading(true);
-      const qrcodes: string[] = [];
+      const newCards: Array<ServiceCard> = [];
       const currentHour = new Date().getHours();
-      for (const account of linkedAccounts) {
-        if (account.service === AccountService.Turboself || account.service === AccountService.ARD) {
-          const cardNumber = await qrcodeFromExternal(account);
-          if (cardNumber) qrcodes.push(cardNumber);
-        }
-      }
+      const accountPromises = linkedAccounts.map(async (account) => {
+        try {
+          const [cardnumber] = await Promise.all([
+            qrcodeFromExternal(account).catch(err => {
+              console.warn(`Error fetching QR code for account ${account}:`, err);
+              return "0";
+            }),
+          ]);
 
-      setQRCodes(qrcodes);
-      setHidden(qrcodes.length === 0 || currentHour < 11 || currentHour > 14);
+          const newCard: ServiceCard = {
+            service: account.service,
+            identifier: account.username,
+            account: account,
+            balance: [],
+            history: [],
+            cardnumber: cardnumber,
+            // @ts-ignore
+            theme: STORE_THEMES.find((theme) => theme.id === AccountService[account.service]) ?? STORE_THEMES[0],
+          };
+
+          newCards.push(newCard);
+        } catch (error) {
+          console.warn(`An error occurred with account ${account}:`, error);
+        }
+      });
+
+      await Promise.all(accountPromises);
+      setAllCards(newCards);
+      setHidden(!(allCards?.some(card => card.cardnumber) && currentHour >= 11 && currentHour <= 14));
       setLoading(false);
     }();
   }, [linkedAccounts, setHidden]);
+
+  useEffect(() => {
+    const updateVisibility = () => {
+      const currentHour = new Date().getHours();
+      const shouldShow = allCards?.some(card => card.cardnumber) && currentHour >= 11 && currentHour < 14;
+      setHidden(!shouldShow);
+    };
+
+    updateVisibility();
+    const interval = setInterval(updateVisibility, 60000);
+
+    return () => clearInterval(interval);
+  }, [linkedAccounts, allCards]);
+
+  useEffect(() => {
+    if (allCards && allCards.length > 1) {
+      const interval = setInterval(() => {
+        setCurrentCardIndex((prevIndex) => (prevIndex + 1) % allCards.length);
+      }, 5000);
+
+      return () => clearInterval(interval);
+    }
+  }, [allCards]);
+
+  const currentCard = allCards?.[currentCardIndex];
 
   return (
     <>
@@ -100,7 +154,18 @@ const RestaurantQRCodeWidget = forwardRef(({
           }}
           layout={LinearTransition}
         >
-          {qrcode && qrcode.length > 1 ? "Toucher pour afficher les QR-Codes" : "Toucher pour afficher le QR-Code"}
+          Toucher pour afficher le QR-Code
+        </Reanimated.Text>
+        <Reanimated.Text
+          style={{
+            fontSize: 15,
+            letterSpacing: 1.5,
+            fontFamily: "medium",
+            opacity: 0.5,
+          }}
+          layout={LinearTransition}
+        >
+          {formatCardIdentifier(currentCard?.account?.localID as string)}
         </Reanimated.Text>
         <View style={{
           position: "absolute",

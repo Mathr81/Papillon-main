@@ -7,11 +7,12 @@ import { View } from "react-native";
 import WebView from "react-native-webview";
 import { useRef, useState } from "react";
 import { useAccounts, useCurrentAccount } from "@/stores/account";
-import { useTheme } from "@react-navigation/native";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
 import PapillonSpinner from "@/components/Global/PapillonSpinner";
 import { NativeText } from "@/components/Global/NativeComponents";
 import { log } from "@/utils/logger/logger";
 import { useAlert } from "@/providers/AlertProvider";
+import { BadgeX, Check } from "lucide-react-native";
 
 const UnivLimoges_Login: Screen<"UnivLimoges_Login"> = ({ navigation }) => {
   const createStoredAccount = useAccounts(store => store.create);
@@ -64,7 +65,10 @@ const UnivLimoges_Login: Screen<"UnivLimoges_Login"> = ({ navigation }) => {
 
         personalization: await defaultPersonalization({
           profilePictureB64: user.avatar
-        })
+        }),
+        identity: {},
+        serviceData: {},
+        providers: []
       };
 
       createStoredAccount(local_account);
@@ -82,10 +86,13 @@ const UnivLimoges_Login: Screen<"UnivLimoges_Login"> = ({ navigation }) => {
     catch (error) {
       showAlert({
         title: "Erreur lors de la connexion",
-        message: "Une erreur est survenue lors de la connexion à votre compte Biome, veuillez réessayer plus tard.",
+        message: "Une erreur est survenue lors de la connexion à ton compte Biome, réessaye plus tard.",
+        icon: <BadgeX />,
         actions: [
           {
             title: "OK",
+            icon: <Check />,
+            primary: true,
             onPress: () => navigation.goBack()
           },
         ],

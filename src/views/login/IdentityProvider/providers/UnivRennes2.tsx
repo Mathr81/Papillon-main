@@ -1,5 +1,5 @@
 import React from "react";
-import { Image, View, StyleSheet, Text } from "react-native";
+import { View } from "react-native";
 
 import { WebView } from "react-native-webview";
 
@@ -52,7 +52,7 @@ import defaultPersonalization from "@/services/local/default-personalization";
 import uuid from "@/utils/uuid-v4";
 import PapillonSpinner from "@/components/Global/PapillonSpinner";
 import { NativeText } from "@/components/Global/NativeComponents";
-import { useTheme } from "@react-navigation/native";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
 
 const UnivRennes2_Login: Screen<"UnivRennes2_Login"> = ({ navigation }) => {
   const mainURL = "https://cas.univ-rennes2.fr/login?service=https%3A%2F%2Fservices.univ-rennes2.fr%2Fsesame%2Findex.php%2Flogin%2Fmon-compte-sesame%2Fchanger-mon-mot-de-passe";
@@ -78,6 +78,8 @@ const UnivRennes2_Login: Screen<"UnivRennes2_Login"> = ({ navigation }) => {
           rawData: data
         },
 
+        providers: ["ical", "moodle"],
+
         localID: uuid(),
         service: AccountService.Local,
 
@@ -92,7 +94,10 @@ const UnivRennes2_Login: Screen<"UnivRennes2_Login"> = ({ navigation }) => {
         className: "UR2", // TODO ?
         schoolName: data?.formation["Formation"] + " - Université de Rennes 2",
 
-        personalization: await defaultPersonalization()
+        personalization: await defaultPersonalization(),
+
+        identity: {},
+        serviceData: {}
       };
 
       createStoredAccount(local_account);

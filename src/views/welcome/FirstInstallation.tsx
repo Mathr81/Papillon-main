@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { Image, Text, View, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -8,49 +8,22 @@ import MaskStars from "@/components/FirstInstallation/MaskStars";
 import PapillonShineBubble from "@/components/FirstInstallation/PapillonShineBubble";
 import ButtonCta from "@/components/FirstInstallation/ButtonCta";
 
-import { useTheme } from "@react-navigation/native";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
 
 import * as WebBrowser from "expo-web-browser";
-import { Audio } from "expo-av";
-import * as SplashScreen from "expo-splash-screen";
 
-const PRIVACY_POLICY_URL = "https://safety.getpapillon.xyz/documents/privacy-policy";
-const TERMS_OF_SERVICE_URL = "https://safety.getpapillon.xyz/documents/terms-of-service";
+const PRIVACY_POLICY_URL = "https://support.papillon.bzh/articles/352402-privacy-policy";
+const TERMS_OF_SERVICE_URL = "https://support.papillon.bzh/articles/352401-terms-of-service";
 
 const FirstInstallation: Screen<"FirstInstallation"> = ({ navigation }) => {
   const theme = useTheme();
   const { colors } = theme;
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
 
   const openUrl = async (url: string) => {
     await WebBrowser.openBrowserAsync(url, {
       controlsColor: colors.primary,
       presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
     });
-  };
-
-  React.useEffect(() => {
-    const loadSound = async () => {
-      const { sound } = await Audio.Sound.createAsync(
-        require("@/../assets/sound/5.wav")
-      );
-      setSound(sound);
-    };
-
-    loadSound();
-    SplashScreen.hideAsync();
-
-    return () => {
-      if (sound) {
-        sound.unloadAsync();
-      }
-    };
-  }, []);
-
-  const playSound = async () => {
-    if (sound) {
-      await sound.replayAsync();
-    }
   };
 
   return (
@@ -61,6 +34,7 @@ const FirstInstallation: Screen<"FirstInstallation"> = ({ navigation }) => {
         message="Bienvenue sur Papillon !"
         numberOfLines={1}
         width={220}
+        offsetTop={"15%"}
       />
 
       <View
@@ -91,13 +65,13 @@ const FirstInstallation: Screen<"FirstInstallation"> = ({ navigation }) => {
 
         <ButtonCta
           value="Besoin d'aide ?"
-          onPress={() => openUrl("https://support.getpapillon.xyz/")}
+          onPress={() => openUrl("https://support.papillon.bzh/")}
         />
       </View>
       <Text
         style={[styles.terms_text, { color: colors.text + "59" }]}
       >
-        En continuant, vous acceptez les&nbsp;
+        En continuant, tu acceptes les&nbsp;
         <Text
           style={{ textDecorationLine: "underline" }}
           onPress={() => openUrl(TERMS_OF_SERVICE_URL)}
@@ -149,6 +123,7 @@ const styles = StyleSheet.create({
 
   terms_text: {
     fontSize: 12,
+    lineHeight: 16,
     textAlign: "center",
     fontFamily: "medium",
     paddingHorizontal: 20,

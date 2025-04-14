@@ -1,16 +1,18 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 
-import { useTheme } from "@react-navigation/native";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
 import * as Haptics from "expo-haptics";
-import { Audio } from "expo-av";
 
 import Reanimated, { Easing, useSharedValue, withTiming } from "react-native-reanimated";
+import useSoundHapticsWrapper from "@/utils/native/playSoundHaptics";
+import useScreenDimensions from "@/hooks/useScreenDimensions";
 
 const DuoListPressable: React.FC<{
   children?: JSX.Element,
   leading?: JSX.Element,
   text?: string,
+  subtext?: string,
   trailing?: JSX.Element,
   enabled?: boolean,
   onPress?: () => void,
@@ -18,6 +20,7 @@ const DuoListPressable: React.FC<{
   children,
   leading,
   text,
+  subtext,
   trailing,
   enabled,
   onPress = () => { },
@@ -25,25 +28,24 @@ const DuoListPressable: React.FC<{
   const theme = useTheme();
   const { colors } = theme;
 
+  const { isTablet } = useScreenDimensions();
+
   const [pressed, setPressed] = useState(false);
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
 
-  const playSound = useCallback(async () => {
-    const { sound } = await Audio.Sound.createAsync(
-      require("@/../assets/sound/click_003.wav")
-    );
-    await sound.setPositionAsync(0);
-    await sound.playAsync();
-  }, []);
+  const { playHaptics, playSound } = useSoundHapticsWrapper();
+  const LEson = require("@/../assets/sound/click_003.wav");
 
   useEffect(() => {
     if (pressed) {
       scale.value = withTiming(1, { duration: 0, easing: Easing.linear });
       scale.value = withTiming(0.95, { duration: 50, easing: Easing.linear });
       opacity.value = withTiming(0.7, { duration: 10, easing: Easing.linear });
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      playSound();
+      playHaptics("impact", {
+        impact: Haptics.ImpactFeedbackStyle.Light,
+      });
+      playSound(LEson);
     }
     else {
       scale.value = withTiming(1, { duration: 100, easing: Easing.linear });
@@ -57,15 +59,15 @@ const DuoListPressable: React.FC<{
       style={{
         transform: [{ scale: scale }],
         opacity: opacity,
-        width: "100%",
       }}
     >
       <Pressable
         style={[
+          isTablet ? { width: "50%" } : { width: "100%" },
           styles.pressable,
           enabled ? {
             borderColor: colors.primary,
-            backgroundColor: colors.primary + "22",
+            backgroundColor: colors.primary + "26",
             shadowColor: colors.primary,
           } : {
             borderColor: colors.border,
@@ -88,20 +90,36 @@ const DuoListPressable: React.FC<{
         <View
           style={{
             flex: 1,
+            justifyContent: "center",
           }}
         >
           {children}
 
           {text && (
+            <Text
+              style={[
+                styles.text,
+                enabled && styles.text_enabled,
+                enabled ? { color: colors.primary } : { color: colors.text + "88" },
+                subtext ? { marginBottom: 2 } : { marginTop: 0 },
+              ]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {text}
+            </Text>
+          )}
+
+          {subtext && (
             <Text style={[
-              styles.text,
-              enabled && styles.text_enabled,
+              styles.subtext,
+              enabled && styles.subtext_enabled,
               enabled ? { color: colors.primary } : { color: colors.text + "88" },
             ]}
             numberOfLines={1}
             ellipsizeMode="tail"
             >
-              {text}
+              {subtext}
             </Text>
           )}
         </View>
@@ -118,16 +136,14 @@ const DuoListPressable: React.FC<{
 
 const styles = StyleSheet.create({
   pressable: {
-    width: "100%",
     borderWidth: 1.5,
-    borderBottomWidth: 3,
     paddingHorizontal: 18,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: 14,
     borderCurve: "continuous",
     flexDirection: "row",
     gap: 18,
-    alignItems: "center",
+    alignSelf: "center",
   },
 
   text: {
@@ -136,8 +152,19 @@ const styles = StyleSheet.create({
     width: "100%",
   },
 
+  subtext: {
+    fontSize: 16,
+    width: "100%",
+    marginTop: 2,
+    opacity: 0.7,
+    fontFamily: "medium",
+  },
+
   text_enabled: {
     fontFamily: "semibold",
+  },
+
+  subtext_enabled: {
   },
 });
 

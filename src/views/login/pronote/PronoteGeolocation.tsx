@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View,Text, StyleSheet } from "react-native";
 import type { Screen } from "@/router/helpers/types";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useTheme } from "@react-navigation/native";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
 
 import { getCurrentPosition } from "@/utils/native/location";
 import { useLocationPermission } from "@/hooks/location";
@@ -66,11 +66,10 @@ const PronoteGeolocation: Screen<"PronoteGeolocation"> = ({ navigation }) => {
         </View>
       )}
 
-      <Text
-        style={[styles.terms_text, { color: colors.text + "59" }]}
-      >
-        Votre position est nécessaire pour trouver les instances PRONOTE à proximité.
-        Elle n'est pas stockée et ne sera pas partagée.
+      <Text style={[styles.terms_text, { color: colors.text + "59" }]}>
+        Ta position est nécessaire pour trouver les instances PRONOTE à proximité.
+        Elle sera envoyée à Pronote et à l'API adresse du gouvernement pour trouver les établissements.
+        Elle n'est pas stockée.
       </Text>
     </SafeAreaView>
   );

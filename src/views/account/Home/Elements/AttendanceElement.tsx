@@ -1,15 +1,17 @@
-import React from "react";
+import React, { useState } from "react";
 import { useEffect } from "react";
-import { NativeListHeader } from "@/components/Global/NativeComponents";
-import { updateGradesPeriodsInCache } from "@/services/grades";
+import { NativeItem, NativeList, NativeListHeader } from "@/components/Global/NativeComponents";
 import { useCurrentAccount } from "@/stores/account";
 import { useAttendanceStore } from "@/stores/attendance";
 import TotalMissed from "../../Attendance/Atoms/TotalMissed";
 import { PressableScale } from "react-native-pressable-scale";
 import RedirectButton from "@/components/Home/RedirectButton";
 import { PapillonNavigation } from "@/router/refs";
-import { log } from "@/utils/logger/logger";
 import type { Attendance } from "@/services/shared/Attendance";
+import { FadeInDown, FadeOut } from "react-native-reanimated";
+import MissingItem from "@/components/Global/MissingItem";
+import { updateAttendanceInCache, updateAttendancePeriodsInCache } from "@/services/attendance";
+import PapillonLoading from "@/components/Global/PapillonLoading";
 
 
 interface AttendanceElementProps {
@@ -20,6 +22,8 @@ const AttendanceElement: React.FC<AttendanceElementProps> = ({ onImportance }) =
   const account = useCurrentAccount((store) => store.account);
   const defaultPeriod = useAttendanceStore((store) => store.defaultPeriod) as string | null;
   const attendances = useAttendanceStore((store) => store.attendances) as Record<string, Attendance> | null;
+
+  const [loading, setLoading] = useState(false);
 
   const ImportanceHandler = () => {
     if (attendances && defaultPeriod) {
@@ -36,9 +40,13 @@ const AttendanceElement: React.FC<AttendanceElementProps> = ({ onImportance }) =
 
   useEffect(() => {
     void (async () => {
-      log("update grades periods in cache", "attendance:updateGradesPeriodsInCache");
       if (account?.instance) {
-        await updateGradesPeriodsInCache(account);
+        setLoading(true);
+        await updateAttendancePeriodsInCache(account);
+        if (defaultPeriod) {
+          await updateAttendanceInCache(account, defaultPeriod);
+        }
+        setLoading(false);
       }
       ImportanceHandler();
     })();
@@ -88,19 +96,71 @@ const AttendanceElement: React.FC<AttendanceElementProps> = ({ onImportance }) =
     };
   };
 
+  if (loading) {
+    return (
+      <>
+        <>
+          <NativeListHeader animated label="Vie scolaire"
+            trailing={(
+              <RedirectButton navigation={PapillonNavigation.current} redirect="Attendance" />
+            )}
+          />
+          <NativeList
+            animated
+            key="loadingAttendance"
+            entering={FadeInDown.springify().mass(1).damping(20).stiffness(300)}
+            exiting={FadeOut.duration(300)}
+          >
+            <NativeItem animated style={{ paddingVertical: 10 }}>
+              <PapillonLoading
+                title="Chargement de la vie scolaire"
+              />
+            </NativeItem>
+          </NativeList>
+        </>
+      </>
+    );
+  }
+
   if (!totalMissed || totalMissed.absences.length === 0) {
-    return null;
+    return (
+      <>
+        <NativeListHeader label={"Vie scolaire"}
+          trailing={(
+            <RedirectButton navigation={PapillonNavigation.current} redirect="Attendance" />
+          )}
+        />
+        <NativeList
+          animated
+          key="emptyAttendance"
+          entering={FadeInDown.springify().mass(1).damping(20).stiffness(300)}
+          exiting={FadeOut.duration(300)}
+        >
+          <NativeItem animated style={{ paddingVertical: 10 }}>
+            <MissingItem
+              title="Aucune absence"
+              description={
+                defaultPeriod
+                  ? `Tu n'as pas d'absences au ${defaultPeriod}.`
+                  : "Tu n'as pas d'absences pour cette période."
+              }
+              emoji="🎉"
+            />
+          </NativeItem>
+        </NativeList>
+      </>
+    );
   }
 
   return (
     <>
-      <NativeListHeader label={`Vie scolaire — ${defaultPeriod}`}
+      <NativeListHeader label={"Vie scolaire"}
         trailing={(
           <RedirectButton navigation={PapillonNavigation.current} redirect="Attendance" />
         )}
       />
       <PressableScale
-        onPress={() => PapillonNavigation.current.navigate("Attendance")}
+        onPress={() => PapillonNavigation.current?.navigate("Attendance")}
       >
         {totalMissed && <TotalMissed totalMissed={formatTotalMissed(totalMissed)} />}
       </PressableScale>

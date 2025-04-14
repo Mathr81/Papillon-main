@@ -2,14 +2,14 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { create } from "zustand";
 import pronote from "pawnote";
-
 import {
   AccountsStore,
   CurrentAccountStore,
   Account,
   AccountService,
   ExternalAccount,
-  PrimaryAccount
+  PrimaryAccount,
+  PapillonMultiServiceSpace,
 } from "@/stores/account/types";
 import { reload } from "@/services/reload-account";
 import { useTimetableStore } from "../timetable";
@@ -17,46 +17,61 @@ import { useHomeworkStore } from "../homework";
 import { useGradesStore } from "../grades";
 import { useNewsStore } from "../news";
 import { useAttendanceStore } from "../attendance";
-import { info, log } from "@/utils/logger/logger";
+import { error, info, log } from "@/utils/logger/logger";
+import { useMultiService } from "@/stores/multiService";
+import { MultiServiceFeature } from "@/stores/multiService/types";
 
-/**
- * Store for the currently selected account.
- * Not persisted, as it's only used during the app's runtime.
- */
+const STORES_TO_REHYDRATE = [
+  [useTimetableStore, "timetable"],
+  [useHomeworkStore, "homework"],
+  [useGradesStore, "grades"],
+  [useNewsStore, "news"],
+  [useAttendanceStore, "attendance"],
+] as const;
+
 export const useCurrentAccount = create<CurrentAccountStore>()((set, get) => ({
   account: null,
   linkedAccounts: [],
+  associatedAccounts: [],
 
-  mutateProperty: <T extends keyof PrimaryAccount>(key: T, value: PrimaryAccount[T]) => {
+  mutateProperty: <T extends keyof PrimaryAccount>(
+    key: T,
+    value: PrimaryAccount[T],
+    forceMutation = false
+  ) => {
     log(`mutate property ${key} in storage`, "current:update");
+    const currentAccount = get().account;
+    if (!currentAccount) return;
 
-    // Since "instance" is a runtime only key,
-    // we mutate the property only in this memory store and not in the persisted one.
+    if (
+      currentAccount.service === AccountService.PapillonMultiService &&
+      key === "personalization" &&
+      !forceMutation
+    ) {
+      const val = value as PrimaryAccount["personalization"];
+      delete val.profilePictureB64;
+    }
+
     if (key === "instance") {
-      set((state) => {
-        if (!state.account) return state;
-
-        const account: Account = {
-          ...state.account,
-          [key]: value // `key` will always be "instance" but TypeScript complains otherwise.
-        };
-
-        return { account };
+      set({
+        account: {
+          ...currentAccount,
+          // @ts-expect-error
+          instance: value,
+        },
       });
+      return;
     }
-    else {
-      const account = useAccounts.getState().update(
-        get().account?.localID ?? "",
-        key, value
-      );
 
-      set({ account: {
+    const localID = currentAccount.localID;
+    const account = useAccounts.getState().update(localID, key, value);
+    set({
+      account: {
         ...account,
-        // @ts-expect-error : types are conflicting between services.
-        instance: get().account?.instance
-      } });
-    }
-
+        // @ts-expect-error
+        instance: currentAccount.instance,
+      },
+    });
     log(`done mutating property ${key} in storage`, "[current:update]");
   },
 
@@ -65,176 +80,239 @@ export const useCurrentAccount = create<CurrentAccountStore>()((set, get) => ({
     set({ account });
     useAccounts.setState({ lastOpenedAccountID: account.localID });
 
-    // Rehydrate every store that needs it.
-    await Promise.all([
-      [useTimetableStore, "timetable"] as const,
-      [useHomeworkStore, "homework"] as const,
-      [useGradesStore, "grades"] as const,
-      [useNewsStore, "news"] as const,
-      [useAttendanceStore, "attendance"] as const,
-    ].map(([store, storageName]) => {
-      store.persist.setOptions({
-        name: `${account.localID}-${storageName}-storage`
-      });
+    const rehydrationPromises = STORES_TO_REHYDRATE.map(
+      ([store, storageName]) => {
+        store.persist.setOptions({
+          name: `${account.localID}-${storageName}-storage`,
+        });
+        info(`rehydrating ${storageName}`, "switchTo");
+        return store.persist.rehydrate();
+      }
+    );
 
-      info(`rehydrating ${storageName}`, "switchTo");
-      return store.persist.rehydrate();
-    }));
-
-    // Account is currently not authenticated,
-    if (typeof account.instance === "undefined") {
-      log("instance undefined, reloading...", "[switchTo]");
-      // Automatically reconnect the main instance.
-      const { instance, authentication } = await reload(account);
-      get().mutateProperty("authentication", authentication);
-      get().mutateProperty("instance", instance);
-      log("instance reload done !", "[switchTo]");
-    }
+    await Promise.all(rehydrationPromises);
 
     const accounts = useAccounts.getState().accounts;
-    const linkedAccounts = account.linkedExternalLocalIDs.map((linkedID) => {
-      return {...accounts.find((acc) => acc.localID === linkedID)};
-    }).filter(Boolean) as ExternalAccount[] ?? [];
+    const currentGet = get();
 
-    info(`found ${linkedAccounts.length} external accounts`, "switchTo");
-
-    for (const linkedAccount of linkedAccounts) {
-      const { instance, authentication } = await reload(linkedAccount);
-      linkedAccount.instance = instance;
-      linkedAccount.authentication = authentication;
-      log("reloaded external", "[switchTo]");
+    if (account.service === AccountService.PapillonMultiService) {
+      log("switching to virtual space...", "[switchTo]");
+    } else if (typeof account.instance === "undefined") {
+      log("instance undefined, reloading...", "switchTo");
+      const { instance, authentication } = await reload(account);
+      currentGet.mutateProperty("authentication", authentication);
+      currentGet.mutateProperty("instance", instance);
+      log("instance reload done!", "switchTo");
     }
 
-    log("reloaded all external accounts", "[switchTo]");
+    const linkedAccounts = account.linkedExternalLocalIDs
+      .map((linkedID) => accounts.find((acc) => acc.localID === linkedID))
+      .filter(Boolean) as ExternalAccount[];
 
-    set({ linkedAccounts });
-    log(`done reading ${account.name} and rehydrating stores.`, "[switchTo]");
+    const associatedAccounts = (account.associatedAccountsLocalIDs || [])
+      .map((associatedID) =>
+        accounts.find((acc) => acc.localID === associatedID)
+      )
+      .filter(Boolean) as PrimaryAccount[];
+
+    info(`found ${linkedAccounts.length} external accounts...`, "switchTo");
+
+    const reloadPromises = [
+      ...linkedAccounts.map(async (linkedAccount) => {
+        const { instance, authentication } = await reload(linkedAccount);
+        linkedAccount.instance = instance;
+        linkedAccount.authentication = authentication;
+        log("reloaded external", "switchTo");
+      }),
+      ...associatedAccounts.map(async (associatedAccount) => {
+        if (typeof associatedAccount.instance !== "undefined") return;
+        try {
+          const { instance, authentication } = await reload(associatedAccount);
+          associatedAccount.instance = instance;
+          associatedAccount.authentication = authentication;
+          useAccounts
+            .getState()
+            .update(
+              associatedAccount.localID,
+              "authentication",
+              authentication
+            );
+          log("reloaded associated account", "[switchTo]");
+        } catch (err) {
+          error(`failed to reload: ${err}!`, "[switchTo]");
+        }
+      }),
+    ];
+
+    await Promise.all(reloadPromises);
+
+    if (account.service === AccountService.PapillonMultiService) {
+      currentGet.mutateProperty("instance", "PapillonPrime");
+    }
+
+    set({ linkedAccounts, associatedAccounts });
+    log(`done reading ${account.name}`, "switchTo");
   },
 
   linkExistingExternalAccount: (account) => {
     log("linking", "linkExistingExternalAccount");
+    const currentAccount = get().account;
+    if (!currentAccount) return;
 
     set((state) => ({
-      linkedAccounts: [...state.linkedAccounts, account]
+      linkedAccounts: [...state.linkedAccounts, account],
     }));
 
     get().mutateProperty("linkedExternalLocalIDs", [
-      ...get().account?.linkedExternalLocalIDs ?? [],
-      account.localID
+      ...(currentAccount.linkedExternalLocalIDs || []),
+      account.localID,
     ]);
-
     log("linked", "linkExistingExternalAccount");
   },
 
   logout: () => {
     const account = get().account;
-    log(`logging out ${account?.name}`, "current:logout");
+    if (!account) return;
 
-    // When using PRONOTE, we should make sure to stop the background interval.
-    if (account && account.service === AccountService.Pronote && account.instance) {
+    log(`logging out ${account.name}`, "current:logout");
+    if (account.service === AccountService.Pronote && account.instance) {
       pronote.clearPresenceInterval(account.instance);
       log("stopped pronote presence", "current:logout");
     }
 
     set({ account: null, linkedAccounts: [] });
     useAccounts.setState({ lastOpenedAccountID: null });
-  }
+  },
 }));
 
-/**
- * Store for the stored accounts.
- * Persisted, as we want to keep the accounts between app restarts.
- */
 export const useAccounts = create<AccountsStore>()(
   persist(
     (set, get) => ({
-      // When opening the app for the first time, it's null.
-      lastOpenedAccountID: null as (string | null),
+      lastOpenedAccountID: null,
+      accounts: [],
 
-      // We don't need to store the localID here, as we can get it from the account store.
-      accounts: <Array<Account>>[],
+      setLastOpenedAccountID: (id) => {
+        set({ lastOpenedAccountID: id });
+        log(
+          `lastOpenedAccountID updated: ${id}`,
+          "accounts:setLastOpenedAccountID"
+        );
+      },
 
-      // When creating, we don't want the "instance" to be stored.
       create: ({ instance, ...account }) => {
-        log(`storing ${account.localID} (${"name" in account ? account.name : "no name"})`, "accounts:create");
-
+        log(`storing ${account.localID}`, "accounts:create");
         set((state) => ({
-          accounts: [...state.accounts, account as Account]
+          accounts: [...state.accounts, account as Account],
         }));
-
         log(`stored ${account.localID}`, "accounts:create");
       },
 
       remove: (localID) => {
         log(`removing ${localID}`, "accounts:remove");
+        const accounts = get().accounts;
+        const spacesAccounts = accounts.filter(
+          (acc) => acc.service === AccountService.PapillonMultiService
+        ) as PapillonMultiServiceSpace[];
 
-        set((state) => ({
-          accounts: state.accounts.filter(
-            (account) => account.localID !== localID
-          )
-        }));
+        set({ accounts: accounts.filter((acc) => acc.localID !== localID) });
 
+        const multiService = useMultiService.getState();
+        spacesAccounts.forEach((spaceAccount) => {
+          if (!spaceAccount.associatedAccountsLocalIDs.includes(localID))
+            return;
+
+          log(
+            `found ${localID} in space ${spaceAccount.name}`,
+            "accounts:remove"
+          );
+          const updatedSpaceAccount = {
+            ...spaceAccount,
+            associatedAccountsLocalIDs:
+              spaceAccount.associatedAccountsLocalIDs.filter(
+                (id) => id !== localID
+              ),
+          };
+
+          const space = multiService.spaces.find(
+            (s) => s.accountLocalID === spaceAccount.localID
+          );
+          if (space) {
+            const updatedFeatures = { ...space.featuresServices };
+            Object.entries(updatedFeatures).forEach(([key, value]) => {
+              if (value === localID) {
+                updatedFeatures[key as MultiServiceFeature] = undefined;
+              }
+            });
+            multiService.update(
+              spaceAccount.localID,
+              "featuresServices",
+              updatedFeatures
+            );
+          }
+
+          set((state) => ({
+            accounts: state.accounts.map((acc) =>
+              acc.localID === spaceAccount.localID ? updatedSpaceAccount : acc
+            ),
+          }));
+
+          if (updatedSpaceAccount.associatedAccountsLocalIDs.length === 0) {
+            log(
+              `space ${spaceAccount.name} is empty, removing`,
+              "accounts:remove"
+            );
+            multiService.remove(spaceAccount.localID);
+            set((state) => ({
+              accounts: state.accounts.filter(
+                (acc) => acc.localID !== spaceAccount.localID
+              ),
+            }));
+          }
+        });
         log(`removed ${localID}`, "accounts:remove");
       },
 
-      /**
-       * Mutates a given property for a given account
-       * and return the updated account.
-       */
       update: (localID, key, value) => {
-        // Find the account to update in the storage.
-        const account = get().accounts.find((account) => account.localID === localID);
-        if (!account) return null;
-
-        // Return as is: we should never update the store for "instance" key,
-        // it should remain a runtime only property.
-        if (key === "instance") return account;
+        const accounts = get().accounts;
+        const account = accounts.find((acc) => acc.localID === localID);
+        if (!account || key === "instance") return account || null;
 
         let accountMutated: Account;
-
-        // Mutate only modified properties.
-        if ((key as keyof PrimaryAccount) === "personalization") {
+        if (key === "personalization") {
           accountMutated = {
             ...account,
             personalization: {
-              ...(<PrimaryAccount>account).personalization,
-              ...(value as PrimaryAccount["personalization"])
-            }
+              ...(account as PrimaryAccount).personalization,
+              ...(value as PrimaryAccount["personalization"]),
+            },
           } as PrimaryAccount;
-        }
-        else if ((key as keyof ExternalAccount) === "data") {
+        } else if (key === "data") {
           accountMutated = {
             ...account,
             data: {
-              ...(<ExternalAccount>account).data,
-              ...(value as ExternalAccount["data"])
-            }
+              ...(account as ExternalAccount).data,
+              ...(value as ExternalAccount["data"]),
+            },
           } as ExternalAccount;
-        }
-        // Mutate the property.
-        else {
+        } else {
           accountMutated = {
             ...account,
-            [key]: value
+            [key]: value,
           };
         }
 
-        // Save the update in the store and storage.
-        set((state) => ({
-          accounts: state.accounts.map((account) =>
-            account.localID === localID
-              ? accountMutated
-              : account
-          )
-        }));
+        set({
+          accounts: accounts.map((acc) =>
+            acc.localID === localID ? accountMutated : acc
+          ),
+        });
 
-        // Return the updated account (to reuse the account directly)
         return accountMutated;
       },
     }),
     {
       name: "accounts-storage",
-      storage: createJSONStorage(() => AsyncStorage)
+      storage: createJSONStorage(() => AsyncStorage),
     }
   )
 );

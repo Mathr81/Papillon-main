@@ -1,13 +1,14 @@
 import createScreen from "@/router/helpers/create-screen";
 import Lessons from "@/views/account/Lessons/Lessons";
+import Week from "@/views/account/Week/Week";
 import Homeworks from "@/views/account/Homeworks/Homeworks";
 import HomeStackScreen from "./home";
 import Menu from "@/views/account/Restaurant/Menu";
 import NewsScreen from "@/views/account/News/News";
 import Grades from "@/views/account/Grades/Grades";
 import Attendance from "@/views/account/Attendance/Attendance";
-import Messages from "@/views/account/Chat/Messages";
-import PlaceholderScreen from "@/views/account/Home/PlaceholderScreen";
+import Discussions from "@/views/account/Chat/Messages";
+import Evaluation from "@/views/account/Evaluation/Evaluation";
 
 export const screens = [
   createScreen("Home", () => <HomeStackScreen accountScreens={screens} />, {
@@ -19,6 +20,12 @@ export const screens = [
     headerTitle: "Cours",
     headerShown: false,
     tabBarLabel: "Cours",
+    tabBarLottie: require("@/../assets/lottie/tab_calendar.json"),
+  }),
+  createScreen("Week", Week, {
+    headerTitle: "Semaine",
+    headerShown: false,
+    tabBarLabel: "Semaine",
     tabBarLottie: require("@/../assets/lottie/tab_calendar.json"),
   }),
   createScreen("Homeworks", Homeworks, {
@@ -36,6 +43,7 @@ export const screens = [
   createScreen("News", NewsScreen, {
     headerTitle: "Actualités",
     tabBarLabel: "Actualités",
+    headerShown: false,
     tabBarLottie: require("@/../assets/lottie/tab_news.json"),
   }),
   createScreen("Attendance", Attendance, {
@@ -44,15 +52,23 @@ export const screens = [
     tabBarLabel: "Vie sco.",
     tabBarLottie: require("@/../assets/lottie/tab_check.json"),
   }),
-  createScreen("Messages", Messages, {
-    headerTitle: "Messages",
-    tabBarLabel: "Messages",
+  createScreen("Discussions", Discussions, {
+    headerTitle: "Discussions",
+    tabBarLabel: "Discussions",
+    headerShown: false,
     tabBarLottie: require("@/../assets/lottie/tab_chat.json"),
   }),
   createScreen("Menu", Menu, {
     headerTitle: "Cantine",
     tabBarLabel: "Cantine",
+    headerShown: false,
     tabBarLottie: require("@/../assets/lottie/tab_pizza.json"),
+  }),
+  createScreen("Evaluation", Evaluation, {
+    headerTitle: "Compétences",
+    headerShown: false,
+    tabBarLabel: "Compétences",
+    tabBarLottie: require("@/../assets/lottie/tab_evaluations.json"),
   }),
 ] as Array<ReturnType<typeof createScreen>>;
 

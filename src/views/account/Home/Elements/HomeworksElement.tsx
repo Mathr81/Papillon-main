@@ -1,6 +1,6 @@
-import { NativeList, NativeListHeader } from "@/components/Global/NativeComponents";
+import { NativeItem, NativeList, NativeListHeader } from "@/components/Global/NativeComponents";
 import { useCurrentAccount } from "@/stores/account";
-import React, { useCallback, useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useHomeworkStore } from "@/stores/homework";
 import { toggleHomeworkState, updateHomeworkForWeekInCache } from "@/services/homework";
 import HomeworkItem from "../../Homeworks/Atoms/Item";
@@ -11,6 +11,10 @@ import RedirectButton from "@/components/Home/RedirectButton";
 import { dateToEpochWeekNumber } from "@/utils/epochWeekNumber";
 import {NativeStackNavigationProp} from "@react-navigation/native-stack";
 import {RouteParameters} from "@/router/helpers/types";
+import { FadeInDown, FadeOut } from "react-native-reanimated";
+import MissingItem from "@/components/Global/MissingItem";
+import PapillonLoading from "@/components/Global/PapillonLoading";
+import { AccountService } from "@/stores/account/types";
 
 interface HomeworksElementProps {
   onImportance: (value: number) => unknown
@@ -21,7 +25,10 @@ const HomeworksElement: React.FC<HomeworksElementProps> = ({ navigation, onImpor
   const account = useCurrentAccount(store => store.account!);
   const homeworks = useHomeworkStore(store => store.homeworks);
 
-  const actualDay = useMemo(()=>new Date(), []);
+  const [loading, setLoading] = useState(false);
+
+  const actualDay = useMemo(() => new Date(), []);
+  const nextWeek = useMemo(() => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), []);
 
   const ImportanceHandler = () => {
     if (!homeworks[dateToEpochWeekNumber(actualDay)]) return;
@@ -40,8 +47,13 @@ const HomeworksElement: React.FC<HomeworksElementProps> = ({ navigation, onImpor
   };
 
   const updateHomeworks = useCallback(async () => {
-    await updateHomeworkForWeekInCache(account, actualDay);
-    ImportanceHandler();
+    if (account.instance) {
+      setLoading(true);
+      await updateHomeworkForWeekInCache(account, actualDay);
+      await updateHomeworkForWeekInCache(account, nextWeek);
+      ImportanceHandler();
+      setLoading(false);
+    }
   }, [account, actualDay]);
 
   const debouncedUpdateHomeworks = useMemo(() => debounce(updateHomeworks, 500), [updateHomeworks]);
@@ -52,63 +64,126 @@ const HomeworksElement: React.FC<HomeworksElementProps> = ({ navigation, onImpor
 
   const handleDonePress = useCallback(
     async (homework: Homework) => {
-      await toggleHomeworkState(account, homework);
+      if (homework.personalizate) {
+        useHomeworkStore
+          .getState()
+          .updateHomework(
+            dateToEpochWeekNumber(new Date(homework.due)),
+            homework.id,
+            {... homework, done: !homework.done }
+          );
+      } else {
+        if (account.service !== AccountService.Skolengo) {
+          await toggleHomeworkState(account, homework);
+        }
+      }
       await updateHomeworks();
     },
     [account, updateHomeworks]
   );
 
-  if (
-    !homeworks[dateToEpochWeekNumber(actualDay)]?.filter(
-      (hw) => hw.due / 1000 >= startTime && hw.due / 1000 <= endTime
-    ) &&
-    !homeworks[dateToEpochWeekNumber(actualDay) + 1]?.filter(
-      (hw) => hw.due / 1000 >= startTime && hw.due / 1000 <= endTime
-    )
-  ) {
-    return null;
-  }
-  const startTime = Date.now() / 1000; // Convertir en millisecondes
-  const endTime = startTime + 7 * 24 * 60 * 60 * 1000; // Ajouter 7 jours en millisecondes
+  const mtn = new Date();
+  mtn.setHours(0, 0, 0, 0);
 
-  const hwFinalList = homeworks[dateToEpochWeekNumber(actualDay)]?.filter(hw => hw.due / 1000 >= startTime && hw.due / 1000 <= endTime);
+  const startTime = mtn.getTime() / 1000;
+  const endTime = startTime + 7 * 24 * 60 * 60 * 1000;
 
-  if(hwFinalList.length === 0) {
-    return null;
+  const hwSemaineActuelle = homeworks[dateToEpochWeekNumber(actualDay)]?.filter(
+    (hw) => hw.due / 1000 >= startTime && hw.due / 1000 <= endTime
+  ) ?? [];
+  const hwSemaineProchaine = homeworks[dateToEpochWeekNumber(actualDay) + 1]?.filter(
+    (hw) => hw.due / 1000 >= startTime && hw.due / 1000 <= endTime
+  ) ?? [];
+
+  if (loading) {
+    return (
+      <>
+        <>
+          <NativeListHeader animated label="Travail à faire"
+            trailing={(
+              <RedirectButton navigation={PapillonNavigation.current} redirect="Homeworks" />
+            )}
+          />
+          <NativeList
+            animated
+            key="loadingHomeworks"
+            entering={FadeInDown.springify().mass(1).damping(20).stiffness(300)}
+            exiting={FadeOut.duration(300)}
+          >
+            <NativeItem animated style={{ paddingVertical: 10 }}>
+              <PapillonLoading
+                title="Chargement des devoirs"
+              />
+            </NativeItem>
+          </NativeList>
+        </>
+      </>
+    );
   }
+
+  if (hwSemaineActuelle.length === 0 && hwSemaineProchaine.length === 0) {
+    return (
+      <>
+        <NativeListHeader animated label="Travail à faire"
+          trailing={(
+            <RedirectButton navigation={PapillonNavigation.current} redirect="Homeworks" />
+          )}
+        />
+        <NativeList
+          animated
+          key="emptyHomeworks"
+          entering={FadeInDown.springify().mass(1).damping(20).stiffness(300)}
+          exiting={FadeOut.duration(300)}
+        >
+          <NativeItem animated style={{ paddingVertical: 10 }}>
+            <MissingItem
+              emoji="📚"
+              title="Aucun devoir"
+              description="Tu n'as aucun devoir pour ces deux prochaines semaines."
+            />
+          </NativeItem>
+        </NativeList>
+      </>
+    );
+  }
+
+  const hw2Semaines = hwSemaineActuelle
+    .concat(hwSemaineProchaine)
+    .filter((element) => !element.done);
 
   return (
     <>
-      <NativeListHeader animated label="Travail à faire"
+      <NativeListHeader
+        animated
+        label={
+          hw2Semaines.length > 7
+            ? `7 / ${hw2Semaines.length} Devoirs à faire`
+            : "Devoirs à faire"
+        }
         trailing={(
           <RedirectButton navigation={PapillonNavigation.current} redirect="Homeworks" />
         )}
       />
       <NativeList>
-        {hwFinalList.map((hw, index) => (
-          <HomeworkItem
-            navigation={navigation}
-            homework={hw}
-            key={index}
-            index={index}
-            total={homeworks[dateToEpochWeekNumber(actualDay) + 1]?.length || 0}
-            onDonePressHandler={() => {
-              handleDonePress(hw);
-            }}
-          />
-        ))}
-        {new Date().getDay() >= 2 && homeworks[dateToEpochWeekNumber(actualDay) + 1]?.filter(hw => hw.due / 1000 >= startTime && hw.due / 1000 <= endTime).map((hw, index) => (
-          <HomeworkItem
-            homework={hw}
-            key={index}
-            index={index}
-            navigation={navigation}
-            total={homeworks[dateToEpochWeekNumber(actualDay) + 1].length}
-            onDonePressHandler={() => {
-              handleDonePress(hw);
-            }}
-          />
-        ))}
+        {hw2Semaines
+          .slice(0, 7)
+          .sort((a, b) => a.due - b.due)
+          .map((hw, index) => (
+            <HomeworkItem
+              homework={hw}
+              key={index}
+              index={index}
+              navigation={navigation}
+              total={hw2Semaines.length}
+              onDonePressHandler={() => {
+                try {
+                  handleDonePress(hw);
+                } catch (e) {
+                  console.error(e);
+                }
+              }}
+            />
+          ))}
       </NativeList>
     </>
   );

@@ -1,8 +1,8 @@
 import React from "react";
-import { ScrollView, View, Alert } from "react-native";
+import { ScrollView, View } from "react-native";
 import type { Screen } from "@/router/helpers/types";
-import { useTheme } from "@react-navigation/native";
-import { GraduationCap, Utensils, BookOpen, Building, School, BookmarkMinus, Compass } from "lucide-react-native";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
+import { GraduationCap, Utensils, BookOpen, School, BookmarkMinus, Compass, Check, Trash2, BadgeInfo } from "lucide-react-native";
 import ExternalServicesContainerCard from "@/components/Settings/ExternalServicesContainerCard";
 import {
   NativeList,
@@ -12,7 +12,8 @@ import {
   NativeText,
 } from "@/components/Global/NativeComponents";
 import { AccountService } from "@/stores/account/types";
-import { useAccounts, useCurrentAccount } from "@/stores/account";
+import { useAccounts } from "@/stores/account";
+import { useAlert } from "@/providers/AlertProvider";
 
 const serviceConfig = {
   [AccountService.Pronote]: { icon: GraduationCap, name: "Pronote" },
@@ -22,10 +23,12 @@ const serviceConfig = {
   [AccountService.Turboself]: { icon: Utensils, name: "Turboself" },
   [AccountService.ARD]: { icon: Utensils, name: "ARD" },
   [AccountService.Izly]: { icon: Utensils, name: "Izly" },
+  [AccountService.Alise]: { icon: Utensils, name: "Alise" },
   [AccountService.Parcoursup]: { icon: BookmarkMinus, name: "Parcoursup" },
   [AccountService.Onisep]: { icon: Compass, name: "Onisep" },
   [AccountService.Local]: { icon: GraduationCap, name: "Local" },
-  [AccountService.Multi]: { icon: GraduationCap, name: "Polytechnique Hauts-de-France" }
+  [AccountService.Multi]: { icon: GraduationCap, name: "Polytechnique Hauts-de-France" },
+  [AccountService.PapillonMultiService]: { icon: GraduationCap, name: "Environnement virtuel Papillon" }
 };
 
 const SettingsExternalServices: Screen<"SettingsExternalServices"> = ({
@@ -34,6 +37,7 @@ const SettingsExternalServices: Screen<"SettingsExternalServices"> = ({
   const theme = useTheme();
   const accounts = useAccounts((state) => state.accounts);
   const removeAccount = useAccounts((state) => state.remove);
+  const { showAlert } = useAlert();
 
   const getServiceIcon = (service: AccountService) => {
     const IconComponent = serviceConfig[service]?.icon || GraduationCap;
@@ -45,46 +49,38 @@ const SettingsExternalServices: Screen<"SettingsExternalServices"> = ({
   };
 
   const showAccountInfo = (account: any) => {
-    let info = `Service: ${getServiceName(account.service)}\n`;
-    info += `ID: ${account.username || "N. not"}\n`;
-    info += `School ID: ${account.authentication.schoolID || "N. not"}\n`;
+    let info = `Service : ${getServiceName(account.service)}\n`;
+    info += `Identifiant : ${account.username || "N. not"}\n`;
+    info += `Établissement : ${account.authentication.schoolID || "N. not"}\n`;
 
 
-
-    Alert.alert(
-      "Informations du compte",
-      info,
-      [
-        { text: "OK", style: "cancel" },
+    showAlert({
+      title: "Informations du compte",
+      message: info,
+      icon: <BadgeInfo />,
+      actions: [
         {
-          text: "Supprimer",
-          style: "destructive",
-          onPress: () => confirmDeleteAccount(account)
-        }
-      ]
-    );
-  };
-
-  const confirmDeleteAccount = (account: any) => {
-    Alert.alert(
-      "Supprimer le compte",
-      "Êtes-vous sûr de vouloir supprimer ce compte ?",
-      [
-        { text: "Annuler", style: "cancel" },
+          title: "OK",
+          icon: <Check />,
+          primary: false,
+        },
         {
-          text: "Supprimer",
-          style: "destructive",
-          onPress: () => deleteAccount(account.localID)
-        }
+          title: "Supprimer",
+          icon: <Trash2 />,
+          onPress: () => removeAccount(account.localID),
+          danger: true,
+          delayDisable: 3,
+        },
       ]
-    );
+    });
   };
 
-  const deleteAccount = (localID: string) => {
-    removeAccount(localID);
-  };
-
-  const filteredAccounts = accounts.filter((acc, index) => !(index === 0 && acc.service === AccountService.Pronote));
+  const filteredAccounts = accounts.filter((acc, index) => {
+    if (acc.isExternal) {
+      return true;
+    }
+    return false;
+  });
 
   return (
     <ScrollView

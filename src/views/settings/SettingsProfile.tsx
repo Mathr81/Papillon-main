@@ -1,12 +1,17 @@
 import { NativeItem, NativeList, NativeListHeader, NativeText } from "@/components/Global/NativeComponents";
 import { Screen } from "@/router/helpers/types";
 import { useCurrentAccount } from "@/stores/account";
-import { useTheme } from "@react-navigation/native";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
 import * as ImagePicker from "expo-image-picker";
-import { Camera, Plus, TextCursorInput, User2, UserCircle2, WholeWord } from "lucide-react-native";
+import { BadgeX, Camera, CameraOff, ChevronDown, ChevronUp, ClipboardCopy, TextCursorInput, Trash, Undo2, User2, UserCircle2, WholeWord } from "lucide-react-native";
 import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Image, KeyboardAvoidingView, ScrollView, Switch, TextInput } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAlert } from "@/providers/AlertProvider";
+import * as Clipboard from "expo-clipboard";
+import { TouchableOpacity } from "react-native-gesture-handler";
+import { getDefaultProfilePicture } from "@/utils/GetRessources/GetDefaultProfilePicture";
+import ResponsiveTextInput from "@/components/FirstInstallation/ResponsiveTextInput";
 
 const SettingsProfile: Screen<"SettingsProfile"> = ({ navigation }) => {
   const theme = useTheme();
@@ -22,6 +27,8 @@ const SettingsProfile: Screen<"SettingsProfile"> = ({ navigation }) => {
 
   const [firstName, setFirstName] = useState(account.studentName?.first ?? "");
   const [lastName, setLastName] = useState(account.studentName?.last ?? "");
+
+  const { showAlert } = useAlert();
 
   // on name change, update the account name
   useEffect(() => {
@@ -45,6 +52,50 @@ const SettingsProfile: Screen<"SettingsProfile"> = ({ navigation }) => {
   const [profilePic, setProfilePic] = useState(account.personalization.profilePictureB64);
   const [loadingPic, setLoadingPic] = useState(false);
 
+  const resetProfilePic = async () => {
+    setLoadingPic(true);
+
+    // Call up the function to obtain the profile picture
+    const img = await getDefaultProfilePicture(account);
+
+    // If the image is undefined, an alert is displayed with an error message
+    if (!img) {
+      showAlert({
+        title: "Erreur",
+        message: "Impossible de récupérer de la photo de profil",
+        icon: <BadgeX />,
+        actions: [
+          {
+            title: "OK",
+            primary: true,
+            icon: <Undo2 />,
+          },
+          {
+            title: "Supprimer la photo",
+            primary: false,
+            onPress: () => {
+              setProfilePic(undefined);
+              mutateProperty("personalization", {
+                ...account.personalization,
+                profilePictureB64: undefined,
+              });
+            },
+            icon: <Trash />,
+          }
+        ],
+      });
+    } else {
+      // If image available, update profile picture
+      setProfilePic(img);
+      mutateProperty("personalization", {
+        ...account.personalization,
+        profilePictureB64: img,
+      });
+    }
+
+    setLoadingPic(false);
+  };
+
   const updateProfilePic = async () => {
     setLoadingPic(true);
 
@@ -63,7 +114,7 @@ const SettingsProfile: Screen<"SettingsProfile"> = ({ navigation }) => {
       mutateProperty("personalization", {
         ...account.personalization,
         profilePictureB64: img,
-      });
+      }, true);
     }
 
     setLoadingPic(false);
@@ -79,6 +130,48 @@ const SettingsProfile: Screen<"SettingsProfile"> = ({ navigation }) => {
       hideProfilePicOnHomeScreen: hideProfilePicOnHomeScreen,
     });
   }, [hideNameOnHomeScreen, hideProfilePicOnHomeScreen]);
+
+  const identityData = account.identity ? [
+    account.identity.civility && {
+      label: "Civilité",
+      value: account.identity.civility === "M" ? "Monsieur" : "Madame",
+    },
+    account.identity.birthDate && {
+      label: "Date de naissance",
+      value: new Date(account.identity.birthDate).toLocaleDateString("fr-FR", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }),
+    },
+    account.identity.birthPlace && {
+      label: "Lieu de naissance",
+      value: account.identity.birthPlace,
+    },
+    account.identity.ine && {
+      label: "INE",
+      value: account.identity.ine,
+    },
+    account.identity.boursier && {
+      label: "Boursier",
+      value: "Oui",
+    },
+    account.identity.email && {
+      label: "Email",
+      value: account.identity.email[0],
+    },
+    account.identity.phone && {
+      label: "Téléphone",
+      value: account.identity.phone[0],
+    },
+    account.identity.address && {
+      label: "Adresse",
+      value: `${account.identity.address.street}, ${account.identity.address.zipCode} ${account.identity.address.city}`,
+    },
+  ].filter(Boolean) as { label: string, value: string }[
+  ] : [];
+
+  const [showIdentity, setShowIdentity] = useState(false);
 
   return (
     <KeyboardAvoidingView
@@ -105,9 +198,9 @@ const SettingsProfile: Screen<"SettingsProfile"> = ({ navigation }) => {
               <Image
                 source={{ uri: profilePic }}
                 style={{
-                  width: 55,
-                  height: 55,
-                  borderRadius: 9,
+                  width: 70,
+                  height: 70,
+                  borderRadius: 16,
                   // @ts-expect-error : borderCurve is not in the Image style
                   borderCurve: "continuous",
                 }}
@@ -121,12 +214,31 @@ const SettingsProfile: Screen<"SettingsProfile"> = ({ navigation }) => {
             <NativeText variant="title">
               {profilePic ? "Changer la photo de profil" : "Ajouter une photo de profil"}
             </NativeText>
-            {!profilePic && (
+            {!profilePic ? (
               <NativeText variant="subtitle">
-                Personnalisez votre compte en ajoutant une photo de profil.
+                Personnalise ton compte en ajoutant une photo de profil.
+              </NativeText>
+            ) : (
+              <NativeText variant="subtitle">
+                Ta photo de profil reste sur ton appareil.
               </NativeText>
             )}
           </NativeItem>
+
+          {profilePic && (
+            <NativeItem
+              chevron={false}
+              onPress={resetProfilePic}
+              icon={<CameraOff />}
+            >
+              <NativeText variant="title">
+                Réinitialiser la photo de profil
+              </NativeText>
+              <NativeText variant="subtitle">
+                Supprime la photo actuelle et rétablit l'image par défaut.
+              </NativeText>
+            </NativeItem>
+          )}
         </NativeList>
 
         <NativeListHeader
@@ -143,7 +255,7 @@ const SettingsProfile: Screen<"SettingsProfile"> = ({ navigation }) => {
             <NativeText variant="subtitle">
               Prénom
             </NativeText>
-            <TextInput
+            <ResponsiveTextInput
               style={{
                 fontSize: 16,
                 fontFamily: "semibold",
@@ -165,7 +277,7 @@ const SettingsProfile: Screen<"SettingsProfile"> = ({ navigation }) => {
             <NativeText variant="subtitle">
               Nom de famille
             </NativeText>
-            <TextInput
+            <ResponsiveTextInput
               style={{
                 fontSize: 16,
                 fontFamily: "semibold",
@@ -193,6 +305,13 @@ const SettingsProfile: Screen<"SettingsProfile"> = ({ navigation }) => {
               <Switch
                 value={!hideNameOnHomeScreen}
                 onValueChange={() => setHideNameOnHomeScreen(!hideNameOnHomeScreen)}
+                trackColor={
+                  {
+                    false: theme.colors.border,
+                    true: theme.colors.primary
+                  }
+                }
+                thumbColor={theme.dark ? theme.colors.text : theme.colors.background}
               />
             }
           >
@@ -212,6 +331,13 @@ const SettingsProfile: Screen<"SettingsProfile"> = ({ navigation }) => {
               <Switch
                 value={!hideProfilePicOnHomeScreen}
                 onValueChange={() => setHideProfilePicOnHomeScreen(!hideProfilePicOnHomeScreen)}
+                trackColor={
+                  {
+                    false: theme.colors.border,
+                    true: theme.colors.primary
+                  }
+                }
+                thumbColor={theme.dark ? theme.colors.text : theme.colors.background}
               />
             }
           >
@@ -224,6 +350,54 @@ const SettingsProfile: Screen<"SettingsProfile"> = ({ navigation }) => {
             </NativeText>
           </NativeItem>
         </NativeList>
+
+        {Object.keys(account.identity ?? {})?.length > 0 && (
+          <NativeListHeader
+            label="Informations d'identité"
+            trailing={
+              <TouchableOpacity
+                onPress={() => setShowIdentity(!showIdentity)}
+              >
+                {showIdentity ?
+                  <ChevronUp
+                    size={24}
+                    color={theme.colors.primary}
+                  /> :
+                  <ChevronDown
+                    size={24}
+                    color={theme.colors.primary}
+                  />
+                }
+              </TouchableOpacity>
+            }
+          />
+        )}
+
+        {showIdentity && (
+          <NativeList>
+            {identityData.map((item, index) => (
+              <NativeItem
+                key={"identityData_"+index}
+                onPress={async () => {
+                  await Clipboard.setStringAsync(item.value);
+                  showAlert({
+                    title: "Copié",
+                    message: "L'information a été copiée dans le presse-papier.",
+                    icon: <ClipboardCopy />,
+                  });
+                }}
+                chevron={false}
+              >
+                <NativeText variant="subtitle">
+                  {item.label}
+                </NativeText>
+                <NativeText variant="body">
+                  {item.value}
+                </NativeText>
+              </NativeItem>
+            ))}
+          </NativeList>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );

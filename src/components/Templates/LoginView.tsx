@@ -4,8 +4,8 @@ import {
   Image,
   type ImageSourcePropType,
   KeyboardAvoidingView,
+  type KeyboardType,
   ScrollView,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -18,11 +18,13 @@ import {
   NativeText,
 } from "../Global/NativeComponents";
 import { AlertTriangle, Eye, EyeOff, Info } from "lucide-react-native";
-import { useTheme } from "@react-navigation/native";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
 import ButtonCta from "../FirstInstallation/ButtonCta";
+import ResponsiveTextInput from "../FirstInstallation/ResponsiveTextInput";
 
 export interface LoginViewCustomInput {
   identifier: string;
+  keyboardType?: KeyboardType;
   title: string;
   placeholder?: string;
   secureTextEntry?: boolean;
@@ -45,6 +47,8 @@ const LoginView: React.FC<{
   usernamePlaceholder?: string;
   passwordLabel?: string;
   passwordPlaceholder?: string;
+  usernameKeyboardType?: KeyboardType;
+  passwordKeyboardType?: KeyboardType;
 }> = ({
   serviceIcon,
   serviceName,
@@ -57,6 +61,8 @@ const LoginView: React.FC<{
   usernamePlaceholder = "Nom d'utilisateur",
   passwordLabel = "Mot de passe",
   passwordPlaceholder = "Mot de passe",
+  usernameKeyboardType = "default",
+  passwordKeyboardType = "default",
 }) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -159,7 +165,7 @@ const LoginView: React.FC<{
             }}
           >
             <NativeItem icon={<AlertTriangle />}>
-              <NativeText variant="subtitle">{error}</NativeText>
+              <NativeText variant="subtitle">Impossible de se connecter, vérifie tes identifiants ou utilise le portail de ton ENT pour te connecter.</NativeText>
             </NativeItem>
           </NativeList>
         )}
@@ -167,11 +173,12 @@ const LoginView: React.FC<{
         <NativeListHeader label={usernameLabel} />
         <NativeList>
           <NativeItem>
-            <TextInput
+            <ResponsiveTextInput
               defaultValue={username}
               onChangeText={setUsername}
               placeholder={usernamePlaceholder}
               autoCapitalize={autoCapitalize}
+              keyboardType={usernameKeyboardType}
               placeholderTextColor={theme.colors.text + "55"}
               style={{
                 fontSize: 16,
@@ -193,12 +200,13 @@ const LoginView: React.FC<{
                 justifyContent: "space-between",
               }}
             >
-              <TextInput
+              <ResponsiveTextInput
                 defaultValue={password}
                 onChangeText={setPassword}
                 placeholder={passwordPlaceholder}
                 placeholderTextColor={theme.colors.text + "55"}
                 autoCapitalize={autoCapitalize}
+                keyboardType={passwordKeyboardType}
                 style={{
                   fontSize: 16,
                   fontFamily: "medium",
@@ -225,7 +233,7 @@ const LoginView: React.FC<{
 
             <NativeList>
               <NativeItem>
-                <TextInput
+                <ResponsiveTextInput
                   value={field.value}
                   onChangeText={(text) => {
                     setCustomFieldsInputs(

@@ -1,19 +1,19 @@
 import React, { useEffect } from "react";
-import { Text, ScrollView, View, TouchableOpacity, StyleSheet, Image, Switch, Alert } from "react-native";
+import { Text, ScrollView, View, TouchableOpacity, Image } from "react-native";
 import type { Screen } from "@/router/helpers/types";
-import { useTheme } from "@react-navigation/native";
-import { ChevronLeft, MegaphoneOff, Sparkles } from "lucide-react-native";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
+import { BadgeInfo, Sparkles } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeList, NativeItem, NativeListHeader, NativeText } from "@/components/Global/NativeComponents";
 import IconsContainerCard from "@/components/Settings/IconsContainerCard";
-import Constants from "expo-constants";
 
 import { icones } from "@/utils/data/icones";
 import colorsList from "@/utils/data/colors.json";
 
 import { getIconName, setIconName } from "@candlefinance/app-icon";
 import PapillonCheckbox from "@/components/Global/PapillonCheckbox";
-import { alertExpoGo, expoGoWrapper, isExpoGo } from "@/utils/native/expoGoAlert";
+import { alertExpoGo, isExpoGo } from "@/utils/native/expoGoAlert";
+import { useAlert } from "@/providers/AlertProvider";
 
 type Icon = {
   id: string;
@@ -40,17 +40,18 @@ export const removeColor = (icon: string) => {
 const SettingsIcons: Screen<"SettingsIcons"> = ({ navigation }) => {
   const theme = useTheme();
   const { colors } = theme;
+  const {showAlert} = useAlert();
   const insets = useSafeAreaInsets();
   const data = icones as { [key: string]: Icon[] };
 
   const [currentIcon, setIcon] = React.useState("default");
 
   useEffect(() => {
-    expoGoWrapper(() => {
+    if (!isExpoGo()) {
       getIconName().then((icon) => {
         setIcon(icon);
       });
-    });
+    };
   }, []);
 
   const setNewIcon = (icon: Icon) => {
@@ -60,16 +61,20 @@ const SettingsIcons: Screen<"SettingsIcons"> = ({ navigation }) => {
 
       const iconConstructName = icon.id + (colorItem ? "_" + colorItem.id : "");
 
-      expoGoWrapper(() => {
+      if (!isExpoGo()) {
         setIconName(iconConstructName);
         setIcon(iconConstructName);
-      }, true);
+      } else {
+        alertExpoGo(showAlert);
+      };
     }
     else {
-      expoGoWrapper(() => {
+      if (!isExpoGo()) {
         setIconName(icon.id);
         setIcon(icon.id);
-      }, true);
+      } else {
+        alertExpoGo(showAlert);
+      };
     }
   };
 
@@ -104,10 +109,11 @@ const SettingsIcons: Screen<"SettingsIcons"> = ({ navigation }) => {
                       backgroundColor: colors.primary + "22",
                     }}
                     onPress={() => {
-                      Alert.alert(
-                        "Icônes dynamiques",
-                        "Les icônes dynamiques changent de couleur en fonction de votre thème.",
-                      );
+                      showAlert({
+                        title: "Icônes dynamiques",
+                        message: "Les icônes dynamiques changent de couleur en fonction de ton thème.",
+                        icon: <BadgeInfo />,
+                      });
                     }}
                   >
                     <Text
@@ -159,10 +165,11 @@ const SettingsIcons: Screen<"SettingsIcons"> = ({ navigation }) => {
                     {icon.isVariable ? (
                       <TouchableOpacity
                         onPress={() => {
-                          Alert.alert(
-                            "Icône dynamique",
-                            "Cette icône est dynamique, elle change de couleur en fonction de votre thème.",
-                          );
+                          showAlert({
+                            title: "Icônes dynamiques",
+                            message: "Les icônes dynamiques changent de couleur en fonction de ton thème.",
+                            icon: <BadgeInfo />,
+                          });
                         }}
                       >
                         <Sparkles color={colors.primary} style={{ marginRight: 10}}/>

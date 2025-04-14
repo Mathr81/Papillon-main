@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View,Text, StyleSheet } from "react-native";
 import type { Screen } from "@/router/helpers/types";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useTheme } from "@react-navigation/native";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
 
 import { getCurrentPosition } from "@/utils/native/location";
 import { useLocationPermission } from "@/hooks/location";
@@ -69,7 +69,7 @@ const SkolengoGeolocation: Screen<"SkolengoGeolocation"> = ({ navigation }) => {
       <Text
         style={[styles.terms_text, { color: colors.text + "59" }]}
       >
-        Votre position est nécessaire pour trouver les instances SKOLENGO à proximité.
+        Ta position est nécessaire pour trouver les instances SKOLENGO à proximité.
         Elle n'est pas stockée et ne sera pas partagée.
       </Text>
     </SafeAreaView>

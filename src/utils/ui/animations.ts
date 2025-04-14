@@ -1,72 +1,79 @@
 import { Easing, withTiming } from "react-native-reanimated";
 
-const animPapillon = (animation: any) => {
-  if (!animation) return;
-
-  return animation.springify().mass(1).damping(20).stiffness(300);
+const SPRING_CONFIG = { mass: 1, damping: 20, stiffness: 300 };
+const TIMING_CONFIG = { duration: 300, easing: Easing.bezier(0.3, 0.3, 0, 1) };
+const ENTER_CONFIG = {
+  duration: 180,
+  scaleX: 0.8,
+  scaleY: 0.65,
+  easing: Easing.bezier(0.3, 0.3, 0, 1),
+};
+const EXIT_CONFIG = {
+  duration: 120,
+  scaleX: 0.9,
+  scaleY: 0.7,
+  easing: Easing.bezier(0.3, 0.3, 0, 1),
 };
 
-const EnteringDuration = 200;
-const EnteringScale = 0.8;
-const ExitingDuration = 150;
-const ExitingScale = 0.9;
+const animPapillon = (a: any) =>
+  a
+    ?.springify()
+    .mass(SPRING_CONFIG.mass)
+    .damping(SPRING_CONFIG.damping)
+    .stiffness(SPRING_CONFIG.stiffness);
 
-// Paramètres d'animation pour l'entrée du menu contextuel
-const PapillonAnimSettings = {
-  duration: EnteringDuration,
-  easing: Easing.bezier(0, 0, 0, 1),
+const anim2Papillon = (a: any) =>
+  a?.duration(TIMING_CONFIG.duration).easing(TIMING_CONFIG.easing);
+
+const ENTER_TIMING = {
+  duration: ENTER_CONFIG.duration,
+  easing: ENTER_CONFIG.easing,
+};
+const EXIT_TIMING = {
+  duration: EXIT_CONFIG.duration,
+  easing: EXIT_CONFIG.easing,
 };
 
-// Paramètres d'animation pour la sortie du menu contextuel
-const PapillonAnimSettingsExit = {
-  duration: ExitingDuration,
-  easing: Easing.bezier(0, 0, 0, 1),
-};
-
-// Fonction d'animation pour l'entrée du menu contextuel
 const PapillonContextEnter = () => {
   "worklet";
-  const animations = {
-    opacity: withTiming(1, PapillonAnimSettings),
-    transform: [
-      {
-        scale: withTiming(1, PapillonAnimSettings),
-      },
-    ],
-  };
-  const initialValues = {
-    opacity: 0,
-    transform: [
-      { scale: EnteringScale },
-    ],
-  };
   return {
-    initialValues,
-    animations,
+    initialValues: {
+      opacity: 0,
+      transform: [
+        { scaleX: ENTER_CONFIG.scaleX },
+        { scaleY: ENTER_CONFIG.scaleY },
+      ],
+    },
+    animations: {
+      opacity: withTiming(1, ENTER_TIMING),
+      transform: [
+        { scaleX: withTiming(1, ENTER_TIMING) },
+        { scaleY: withTiming(1, ENTER_TIMING) },
+      ],
+    },
   };
 };
 
-// Fonction d'animation pour la sortie du menu contextuel
 const PapillonContextExit = () => {
   "worklet";
-  const animations = {
-    opacity: withTiming(0, PapillonAnimSettingsExit),
-    transform: [
-      { scale: withTiming(ExitingScale, PapillonAnimSettingsExit) },
-    ],
-  };
-  const initialValues = {
-    opacity: 1,
-    transform: [{ scale: 1 }],
-  };
   return {
-    initialValues,
-    animations,
+    initialValues: {
+      opacity: 1,
+      transform: [{ scaleX: 1 }, { scaleY: 1 }],
+    },
+    animations: {
+      opacity: withTiming(0, EXIT_TIMING),
+      transform: [
+        { scaleX: withTiming(EXIT_CONFIG.scaleX, EXIT_TIMING) },
+        { scaleY: withTiming(EXIT_CONFIG.scaleY, EXIT_TIMING) },
+      ],
+    },
   };
 };
 
 export {
   animPapillon,
+  anim2Papillon,
   PapillonContextEnter,
   PapillonContextExit,
 };

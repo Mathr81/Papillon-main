@@ -1,5 +1,5 @@
-import { useTheme } from "@react-navigation/native";
-import React, { useMemo, useState } from "react";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
+import React, { useMemo } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
 
 import ColorIndicator from "@/components/Lessons/ColorIndicator";
@@ -17,14 +17,7 @@ import Reanimated, {
 import NativeTouchable from "@/components/Global/NativeTouchable";
 import { getSubjectData } from "@/services/shared/Subject";
 import { animPapillon } from "@/utils/ui/animations";
-
-const lz = (num: number) => (num < 10 ? `0${num}` : num);
-
-const getDuration = (minutes: number): string => {
-  const durationHours = Math.floor(minutes / 60);
-  const durationRemainingMinutes = minutes % 60;
-  return `${durationHours} h ${lz(durationRemainingMinutes)} min`;
-};
+import { getDuration } from "@/utils/format/course_duration";
 
 export const TimetableItem: React.FC<{
   item: TimetableClass
@@ -57,24 +50,24 @@ export const TimetableItem: React.FC<{
         style={[styles.detailsContainer, { backgroundColor: colors.card, borderColor: colors.text + "33" }]}
         underlayColor={colors.text + "11"}
         onPress={() => {
-          PapillonNavigation.current.navigate("LessonDocument", { lesson: item });
+          PapillonNavigation.current?.navigate("LessonDocument", { lesson: item });
 
         }}
       >
         <View style={[{ flex: 1, flexDirection: "column", overflow: "hidden", borderRadius: 10 }]}>
           {item.statusText && (
             <View style={[styles.statusContainer, {
-              backgroundColor: item.status === TimetableClassStatus.CANCELED ? "#E8BEBF" : item.status === TimetableClassStatus.TEST ? "#f4b490" : subjectData.color + "33" }]}>
+              backgroundColor: item.status === TimetableClassStatus.CANCELED ? "#E8BEBF" : item.status === TimetableClassStatus.TEST ? "#f4b490" : subjectData.color + "22" }]}>
               <Text style={[styles.statusText, { color: item.status === TimetableClassStatus.CANCELED ? "#B42828" : item.status === TimetableClassStatus.TEST ? "#d2691e" : subjectData.color}]}>{item.statusText}</Text>
             </View>
           )}
 
-          <View style={[{ flex: 1, flexDirection: "row", padding: 10 }]}>
+          <View style={[{ flex: 1, flexDirection: "row", padding: 0 }]}>
             <View style={styles.colorIndicator}>
               <ColorIndicator color={subjectData.color} />
             </View>
 
-            <View style={{ flexDirection: "column", flexShrink: 1, gap: 6, flex: 1 }}>
+            <View style={{ flexDirection: "column", flexShrink: 1, gap: 6, flex: 1, padding: 10, paddingLeft: 3 }}>
               <Text numberOfLines={2} style={[styles.titleText, { color: colors.text }]}>{subjectData.pretty || "Cours inconnu"}</Text>
 
               {item.itemType && (
@@ -100,7 +93,7 @@ export const TimetableItem: React.FC<{
 
               {!small && (
                 <View style={{ flexDirection: "row", flex: 1 }}>
-                  <Text numberOfLines={2} style={[styles.locationText, { color: colors.text }]}>{item.teacher ?? "Professeur inconnu"}</Text>
+                  <Text numberOfLines={2} style={[styles.locationText, { color: item.teacher ? colors.text : colors.text + "80" }]}>{item.teacher ?? "Professeur inconnu"}</Text>
                   <Text style={[styles.durationText, { color: colors.text }]}>{getDuration(durationMinutes)}</Text>
                 </View>
               )}
@@ -133,11 +126,13 @@ const styles = StyleSheet.create({
   timeText: {
     fontSize: 17,
     fontFamily: "semibold",
+    letterSpacing: 0.2,
   },
   timeTextSec: {
     fontSize: 15,
     fontFamily: "medium",
     opacity: 0.5,
+    letterSpacing: 0.2,
   },
   detailsContainer: {
     flex: 1,
@@ -176,6 +171,10 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     alignSelf: "flex-start",
     maxWidth: "100%",
+    flexDirection: "row",
+    gap: 4,
+    alignItems: "center",
+    justifyContent: "center",
   },
   roomText: {
     color: "#91003F",
@@ -185,20 +184,24 @@ const styles = StyleSheet.create({
     maxWidth: "100%",
   },
   locationText: {
-    fontSize: 14,
+    fontSize: 15,
+    opacity: 0.5,
     flex: 1,
+    fontFamily: "medium",
   },
   durationText: {
-    fontSize: 14,
+    fontSize: 15,
     opacity: 0.5,
     alignSelf: "flex-end",
+    fontFamily: "medium",
   },
   statusContainer: {
     paddingVertical: 6,
     paddingHorizontal: 10,
   },
   statusText: {
-    fontSize: 14.5,
+    fontSize: 15,
+    letterSpacing: 0.2,
     fontFamily: "semibold",
   },
 });

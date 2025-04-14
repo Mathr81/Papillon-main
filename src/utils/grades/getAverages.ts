@@ -1,158 +1,208 @@
-// On importe le type `Grade` depuis le chemin spécifié
 import type { Grade } from "@/services/shared/Grade";
 
-// Définition de l'interface `GradeHistory` pour représenter l'historique des notes avec une valeur numérique et une date
 export interface GradeHistory {
-  value: number; // La valeur de la note
-  date: string; // La date à laquelle la note a été enregistrée
+  value: number;
+  date: string;
 }
 
-// Définition du type `Target` qui indique quel type de moyenne ou note cibler
 type Target = "student" | "average" | "min" | "max";
 
-// Définition du type `AverageDiffGrade` pour calculer la différence entre les moyennes avec et sans certaines notes
 export type AverageDiffGrade = {
-  difference?: number; // La différence de moyenne entre deux ensembles de notes
-  with: number; // La moyenne avec toutes les notes
-  without: number; // La moyenne sans certaines notes
+  difference?: number;
+  with: number;
+  without: number;
 };
 
-// Fonction pour calculer la moyenne des notes globales par matière, en fonction de la cible (par défaut, "student")
+// Memoization cache for subject averages
+const subjectAverageCache = new Map<string, number>();
+
+const getCacheKey = (subject: Grade[], target: Target, useMath: boolean, loop: boolean): string => {
+  return `${target}-${useMath}-${loop}-${subject.map(g => g.subjectId ?? g.subjectName).join(",")}`;
+};
+
 const getPronoteAverage = (
   grades: Grade[],
   target: Target = "student",
   useMath: boolean = false
 ): number => {
-  // Si aucune note n'est fournie ou que la liste est vide, on retourne -1
-  if (!grades || grades.length === 0) return -1;
+  if (!grades?.length) return -1;
 
-  // Grouper les notes par matière
-  const groupedBySubject = grades.reduce(
-    (acc: Record<string, Grade[]>, grade) => {
-      (acc[grade.subjectName] ||= []).push(grade); // Ajouter la note à la liste des notes pour la matière correspondante
-      return acc;
-    },
-    {}
-  );
+  const groupedBySubject: Record<string, Grade[]> = {};
+  let countedSubjects = 0;
+  let totalAverage = 0;
 
-  // Calculer la moyenne totale de toutes les matières
-  const totalAverage = Object.values(groupedBySubject).reduce(
-    (acc, subjectGrades) => {
-      return acc + getSubjectAverage(subjectGrades, target, useMath); // Additionner les moyennes de chaque matière
-    },
-    0
-  );
+  // Optimized grouping
+  for (let i = 0; i < grades.length; i++) {
+    const grade = grades[i];
+    const key = grade.subjectId ?? grade.subjectName;
+    groupedBySubject[key] = groupedBySubject[key] || [];
+    groupedBySubject[key].push(grade);
+  }
 
-  // Retourner la moyenne globale en divisant par le nombre de matières
-  return totalAverage / Object.keys(groupedBySubject).length;
-};
+  const subjects = Object.values(groupedBySubject);
 
-// Fonction pour calculer la moyenne d'une matière spécifique, selon la cible choisie
-export const getSubjectAverage = (
-  subject: Grade[],
-  target: Target = "student",
-  useMath: boolean = false
-): number => {
-  let calcGradesSum = 0; // Somme cumulée des notes pondérées
-  let calcOutOfSum = 0; // Somme cumulée des coefficients pondérés
-
-  // Parcourir chaque note de la matière
-  for (const grade of subject) {
-    const targetGrade = grade[target]; // Sélectionner la note selon la cible choisie
-
-    // Vérifier si la note est invalide ou si le coefficient est nul, et passer à la suivante si c'est le cas
-    if (
-      !targetGrade ||
-			targetGrade.disabled ||
-			targetGrade.value === null ||
-			targetGrade.value < 0 ||
-			grade.coefficient === 0
-    )
-      continue;
-
-    const coefficient = grade.coefficient; // Coefficient de la note
-    const outOfValue = grade.outOf.value!; // Valeur maximale possible pour la note
-
-    // Si la note est un bonus
-    if (grade.isBonus) {
-      const averageMoy = outOfValue / 2; // Calculer la moitié de la valeur maximale comme seuil de bonus
-      const newGradeValue = targetGrade.value - averageMoy; // Ajuster la note en soustrayant la moitié de la valeur maximale
-
-      if (newGradeValue < 0) continue; // Si la note ajustée est négative, passer à la suivante
-
-      calcGradesSum += newGradeValue; // Ajouter la note ajustée à la somme
-      calcOutOfSum += 1; // Incrémenter la somme de pondération (compte comme 1 ici)
-    } else if(useMath) {
-      calcGradesSum += targetGrade.value;
-    } else if (targetGrade.value > 20 || coefficient < 1) {
-      // Si la note est supérieure à 20 ou si le coefficient est inférieur à 1, ajuster pour une base sur 20
-      const gradeOn20 = (targetGrade.value / outOfValue) * 20; // Ajuster la note pour une base sur 20
-      calcGradesSum += gradeOn20 * coefficient; // Ajouter la note ajustée et pondérée
-      calcOutOfSum += 20 * coefficient; // Ajouter le coefficient ajusté à la somme
-    } else {
-      // Cas général pour une note normale
-      calcGradesSum += targetGrade.value * coefficient; // Ajouter la note pondérée à la somme
-      calcOutOfSum += outOfValue * coefficient; // Ajouter le coefficient pondéré à la somme
+  for (let i = 0; i < subjects.length; i++) {
+    const nAvg = getSubjectAverage(subjects[i], target, useMath);
+    if (nAvg !== -1) {
+      countedSubjects++;
+      totalAverage += nAvg;
     }
   }
 
-  if(useMath) {
-    return calcGradesSum / subject.length;
-  }
-
-  // Si aucune somme de pondération n'est calculée, retourner 0 pour éviter la division par zéro
-  if (calcOutOfSum === 0) return 0;
-
-  // Calculer la moyenne de la matière en ajustant pour s'assurer qu'elle ne dépasse pas 20
-  const subjectAverage = Math.min((calcGradesSum / calcOutOfSum) * 20, 20);
-  return subjectAverage; // Retourner la moyenne calculée
+  return countedSubjects > 0 ? totalAverage / countedSubjects : -1;
 };
 
-// Fonction pour calculer la différence de moyenne avec et sans certaines notes
+export const getSubjectAverage = (
+  subject: Grade[],
+  target: Target = "student",
+  useMath: boolean = false,
+  loop: boolean = false
+): number => {
+  const cacheKey = getCacheKey(subject, target, useMath, loop);
+  const cachedValue = subjectAverageCache.get(cacheKey);
+  if (cachedValue !== undefined) return cachedValue;
+
+  let calcGradesSum = 0;
+  let calcOutOfSum = 0;
+  let countedGrades = 0;
+
+  for (let i = 0; i < subject.length; i++) {
+    const grade = subject[i];
+    const targetGrade = grade[target];
+
+    if (
+      !targetGrade ||
+      targetGrade.disabled ||
+      targetGrade.value === null ||
+      targetGrade.value < 0 ||
+      grade.coefficient === 0 ||
+      typeof targetGrade.value !== "number"
+    ) {
+      continue;
+    }
+
+    const coefficient = grade.coefficient;
+    const outOfValue = grade.outOf.value!;
+
+    if (grade.isOptional && !loop) {
+      const filteredSubject = subject.filter((g, idx) => idx !== i);
+      const avgWithout = getSubjectAverage(filteredSubject, target, useMath, true);
+      const avgWith = getSubjectAverage(subject, target, useMath, true);
+
+      if (avgWithout > avgWith) {
+        continue;
+      }
+    }
+
+    if (grade.isBonus) {
+      const averageMoy = outOfValue / 2;
+      const newGradeValue = targetGrade.value - averageMoy;
+
+      if (newGradeValue >= 0) {
+        calcGradesSum += newGradeValue;
+        calcOutOfSum += 1;
+      }
+    } else if (useMath) {
+      calcGradesSum += targetGrade.value * coefficient;
+      countedGrades += coefficient;
+    } else {
+      if (targetGrade.value > 20 || (coefficient < 1 && outOfValue - 20 >= -5) || outOfValue > 20) {
+        const gradeOn20 = (targetGrade.value / outOfValue) * 20;
+        calcGradesSum += gradeOn20 * coefficient;
+        calcOutOfSum += 20 * coefficient;
+      } else {
+        calcGradesSum += targetGrade.value * coefficient;
+        calcOutOfSum += outOfValue * coefficient;
+      }
+      countedGrades++;
+    }
+  }
+
+  let result = -1;
+  if (useMath) {
+    result = countedGrades > 0 ? calcGradesSum / countedGrades : -1;
+  } else if (calcOutOfSum > 0) {
+    result = Math.min((calcGradesSum / calcOutOfSum) * 20, 20);
+    result = isNaN(result) ? -1 : result;
+  }
+
+  subjectAverageCache.set(cacheKey, result);
+  return result;
+};
+
 const getAverageDiffGrade = (
   grades: Grade[],
   list: Grade[],
   target: Target = "student",
   useMath: boolean = false
 ): AverageDiffGrade => {
-  const baseAverage = getSubjectAverage(list, target); // Calculer la moyenne de base avec toutes les notes
-  const baseWithoutGradeAverage = getSubjectAverage(
-    list.filter((grade) => JSON.stringify(grades[0]) !== JSON.stringify(grade)),
-    target,
-    useMath
-  ); // Calculer la moyenne sans certaines notes
+  try {
+    const baseAverage = getSubjectAverage(list, target);
+    const filteredList = list.filter(grade =>
+      !grades.some(g =>
+        g.student.value === grade.student.value &&
+        g.coefficient === grade.coefficient
+      )
+    );
+    const baseWithoutGradeAverage = getSubjectAverage(filteredList, target, useMath);
 
-  return {
-    difference: baseWithoutGradeAverage - baseAverage, // Calculer la différence entre les deux moyennes
-    with: baseAverage, // Moyenne avec toutes les notes
-    without: baseWithoutGradeAverage, // Moyenne sans certaines notes
-  };
+    return {
+      difference: baseWithoutGradeAverage - baseAverage,
+      with: baseAverage,
+      without: baseWithoutGradeAverage,
+    };
+  } catch (e) {
+    return {
+      difference: 0,
+      with: 0,
+      without: 0,
+    };
+  }
 };
 
-// Fonction pour générer un historique des moyennes au fil du temps
 const getAveragesHistory = (
   grades: Grade[],
   target: Target = "student",
   final?: number,
   useMath: boolean = false
 ): GradeHistory[] => {
-  // Générer l'historique des moyennes jusqu'à la date de chaque note
-  const history = grades.map((grade, index) => ({
-    value: getPronoteAverage(grades.slice(0, index + 1), target), // Moyenne jusqu'à ce point
-    date: new Date(grade.timestamp).toISOString(), // Date de la note au format ISO
-  }));
+  if (!grades?.length) return [];
 
-  // Trier l'historique par date
-  history.sort((a, b) => a.date.localeCompare(b.date));
+  const history: GradeHistory[] = [];
+  let cumulativeGrades: Grade[] = [];
+  let lastDate = "";
 
-  // Ajouter un point final avec la moyenne finale (ou calculée)
-  history.push({
-    value: final ?? getPronoteAverage(grades, target, useMath), // Moyenne finale ou calculée
-    date: new Date().toISOString(), // Date actuelle
-  });
+  // Pre-allocate array
+  history.length = grades.length;
 
-  return history; // Retourner l'historique complet
+  for (let i = 0; i < grades.length; i++) {
+    cumulativeGrades.push(grades[i]);
+    const currentDate = new Date(grades[i].timestamp).toISOString();
+
+    // Only add to history if date changed to reduce calculations
+    if (currentDate !== lastDate) {
+      history[i] = {
+        value: getPronoteAverage(cumulativeGrades, target),
+        date: currentDate
+      };
+      lastDate = currentDate;
+    }
+  }
+
+  // Filter out undefined entries and sort
+  const filteredHistory = history.filter(Boolean);
+  filteredHistory.sort((a, b) => a.date.localeCompare(b.date));
+
+  // Add final value
+  const finalValue = final ?? getPronoteAverage(grades, target, useMath);
+  if (!isNaN(finalValue)) {
+    filteredHistory.push({
+      value: finalValue,
+      date: new Date().toISOString()
+    });
+  }
+
+  return filteredHistory;
 };
 
-// Exportation des fonctions pour utilisation externe
 export { getPronoteAverage, getAverageDiffGrade, getAveragesHistory };

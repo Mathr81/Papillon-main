@@ -1,223 +1,235 @@
-import React, { useEffect, useLayoutEffect, useState } from "react";
-import {
-  View,
-  Text,
-  StatusBar,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView, Platform,
-} from "react-native";
-import { DeviceMotion } from "expo-sensors";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { balanceFromExternal } from "@/services/balance";
+import { qrcodeFromExternal } from "@/services/qrcode";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
+import { BlurView } from "expo-blur";
+import { QrCodeIcon, X } from "lucide-react-native";
+import { useEffect, useState } from "react";
+import { View, Text, Pressable } from "react-native";
+import { TouchableOpacity } from "react-native-gesture-handler";
+import { PressableScale } from "react-native-pressable-scale";
 import QRCode from "react-native-qrcode-svg";
+import * as Haptics from "expo-haptics";
+import { Screen } from "@/router/helpers/types";
+import { ExternalAccount } from "@/stores/account/types";
+import useSoundHapticsWrapper from "@/utils/native/playSoundHaptics";
 import * as Brightness from "expo-brightness";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  Easing,
-} from "react-native-reanimated";
-import { useTheme } from "@react-navigation/native";
-import { X } from "lucide-react-native";
-import ScanIcon from "@/components/Restaurant/ScanIcon";
-import type { Screen } from "@/router/helpers/types";
 
-const BETA_THRESHOLD_LOW = -0.2;
-const BETA_THRESHOLD_HIGH = -0.15;
-const ANIMATION_DURATION = 500;
+const RestaurantQrCode: Screen<"RestaurantQrCode">  = ({ route, navigation }) => {
+  const { card } = route.params;
+  const [qrCode, setQrCode] = useState<string | null>(null);
+  const [defaultBrightness, setDefaultBrightness] = useState<number>(0.5);
+  const { playHaptics } = useSoundHapticsWrapper();
 
-const RestaurantQrCode: Screen<"RestaurantQrCode"> = ({ route, navigation }) => {
-  const [currentState, setCurrentState] = useState<
-    "neutral" | "tiltedUp" | "tiltedDown"
-  >("neutral");
-  const opacity = useSharedValue(1);
-  const rotate = useSharedValue(0);
-  const theme = useTheme();
-  const { colors } = theme;
-
-  const qrcodes = route.params.QrCodes;
-  const [activeIndex, setActiveIndex] = useState(0);
-  const handleScroll = (event: { nativeEvent: { contentOffset: { x: any; }; }; }) => {
-    const contentOffsetX = event.nativeEvent.contentOffset.x;
-    const index = Math.floor(contentOffsetX / (100));
-    setActiveIndex(Math.max(0, Math.min(index, qrcodes ? qrcodes.length - 1 : 0)));
+  const PollingBalance = async () => {
+    balanceFromExternal(card.account as ExternalAccount).then((newBalance) => {
+      if(card.balance[0].amount !== newBalance[0].amount) {
+        const diff = newBalance[0].amount - card.balance[0].amount;
+        openFeedback();
+      }
+    });
   };
 
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <TouchableOpacity
-          onPress={navigation.goBack}
-          style={[styles.headerButton, { backgroundColor: "#ffffff30" }]}
-        >
-          <X size={24} color="white" />
-        </TouchableOpacity>
-      ),
+  const openFeedback = () => {
+    playHaptics("notification", {
+      notification: Haptics.NotificationFeedbackType.Success,
     });
-  }, [navigation]);
+    navigation.goBack();
+    setTimeout(() => {
+      navigation.navigate("RestaurantPaymentSuccess", { card, diff: 0 });
+    }, 1000);
+  };
 
   useEffect(() => {
-    (async () => {
-      if (Platform.OS === "android") {
-        const { status } = await Brightness.requestPermissionsAsync();
-        if (status !== "granted") {
-          navigation.goBack();
-          return;
-        }
+    const handleBrightness = async () => {
+      const { status } = await Brightness.requestPermissionsAsync();
+      if (status === "granted") {
+        const currentBrightness = await Brightness.getBrightnessAsync();
+        setDefaultBrightness(currentBrightness);
+        Brightness.setSystemBrightnessAsync(1);
       }
-      try { await Brightness.setBrightnessAsync(1); } catch (e) { console.warn("Brightness error:", e); }
-    })();
-    return () => { Brightness.setBrightnessAsync(0.5); };
-  }, [navigation]);
+    };
 
+    handleBrightness();
 
-  useEffect(() => {
-    const subscription = DeviceMotion.addListener(({ rotation }) => {
-      let newState: "neutral" | "tiltedUp" | "tiltedDown" = "neutral";
-
-      if (!rotation || typeof rotation.beta === "undefined") {
-        return;
+    const handleBeforeRemove = async () => {
+      const { status } = await Brightness.requestPermissionsAsync();
+      if (status === "granted" && defaultBrightness !== undefined) {
+        Brightness.setSystemBrightnessAsync(defaultBrightness);
       }
+    };
 
-      if (rotation.beta < BETA_THRESHOLD_LOW) {
-        newState = "tiltedDown";
-      } else if (rotation.beta > BETA_THRESHOLD_HIGH) {
-        newState = "tiltedUp";
-      }
-
-      if (newState !== currentState) {
-        setCurrentState(newState);
-        const finalRotation = newState === "tiltedDown" ? 180 : 0;
-
-        opacity.value = withTiming(0, {
-          duration: ANIMATION_DURATION / 2,
-          easing: Easing.out(Easing.ease),
-        }, () => {
-          rotate.value = withTiming(finalRotation, {
-            duration: ANIMATION_DURATION / 2,
-            easing: Easing.inOut(Easing.ease),
-          }, () => {
-            opacity.value = withTiming(1, {
-              duration: ANIMATION_DURATION / 2,
-              easing: Easing.in(Easing.ease),
-            });
-          });
-        });
-      }
-    });
+    navigation.addListener("beforeRemove", handleBeforeRemove);
 
     return () => {
-      subscription.remove();
+      navigation.removeListener("beforeRemove", handleBeforeRemove);
     };
-  }, [currentState, opacity, rotate]);
+  }, [defaultBrightness, navigation]);
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [{ rotate: `${rotate.value}deg` }],
-  }));
+  useEffect(() => {
+    // Si Izly
+    if(card.service === 10) {
+      const interval = setInterval(() => {
+        console.log("[CANTINE >> IZLY] Demande du solde");
+        PollingBalance();
+      }, 1000);
+
+      return () => {
+        clearInterval(interval);
+        console.log("[CANTINE >> IZLY] Fin du polling");
+      };
+    }
+  }, []);
+
+  const theme = useTheme();
+
+  const GenerateQRCode = async () => {
+    qrcodeFromExternal(card.account as ExternalAccount).then((qrCode) => {
+      // @ts-expect-error
+      setQrCode(qrCode);
+    });
+  };
+
+  useEffect(() => {
+    GenerateQRCode();
+  }, []);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle={"dark-content"} />
-      <View style={styles.qrCodeContainer}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          snapToInterval={200}
-          decelerationRate="fast"
-          scrollEnabled={qrcodes?.length > 1}
-          onScroll={handleScroll}
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: theme.colors.background + "50",
+        justifyContent: "center",
+        alignItems: "center",
+      }}
+    >
+      <BlurView
+        style={{
+          flex: 1,
+          width: "100%",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+        intensity={100}
+        tint={theme.dark ? "dark" : "light"}
+      >
+
+        <Pressable
+          style={{
+            width: "100%",
+            flex: 1,
+
+            justifyContent: "flex-end",
+            alignItems: "center",
+          }}
+          onPress={() => navigation.goBack()}
         >
-          { qrcodes && qrcodes?.map((code, index) => (
-            <View key={index} style={styles.qrCodeInnerContainer}>
-              <QRCode
-                value={code.toString()}
-                size={170}
-                color="#000000"
-                backgroundColor="#FFFFFF"
-              />
-            </View>
-          ))}
-        </ScrollView>
-      </View>
-      { qrcodes && qrcodes.length > 1 && (
-        <View style={styles.dotsContainer}>
-          {qrcodes.map((_, index) => (
-            <View
-              key={index}
-              style={[
-                styles.dot,
-                index === activeIndex ? styles.activeDot : styles.inactiveDot,
-              ]}
+          <View
+            style={{
+              marginBottom: 32,
+              justifyContent: "center",
+              alignItems: "center",
+              gap: 8,
+              maxWidth: 260,
+            }}
+          >
+            <QrCodeIcon
+              size={24}
+              color={theme.colors.text}
             />
-          ))}
-        </View>
-      )}
-      <Animated.View style={[styles.instructionContainer, animatedStyle]}>
-        <ScanIcon color={colors.primary} />
-        <Text style={styles.instructionText}>
-          Orientez le code QR vers le scanner de la borne
-        </Text>
-      </Animated.View>
-    </SafeAreaView>
+
+            <Text
+              style={{
+                color: theme.colors.text,
+                fontSize: 15,
+                lineHeight: 20,
+                textAlign: "center",
+                fontFamily: "semibold",
+              }}
+            >
+              Approche le code QR du scanner de la borne afin de valider ta carte
+            </Text>
+          </View>
+        </Pressable>
+
+        {qrCode && (
+          <PressableScale
+            style={{
+              padding: 16,
+              backgroundColor: "white",
+
+              borderColor: theme.colors.text + "40",
+              borderWidth: 1,
+
+              shadowColor: "#000",
+              shadowOffset: {
+                width: 0,
+                height: 2,
+              },
+              shadowOpacity: 0.2,
+              shadowRadius: 7,
+
+              elevation: 5,
+
+              borderRadius: 16,
+              borderCurve: "continuous",
+            }}
+            onPress={() => {
+              GenerateQRCode();
+            }}
+            weight="light"
+            activeScale={0.9}
+          >
+            <QRCode
+              value={qrCode}
+              size={280}
+            />
+          </PressableScale>
+        )}
+
+        <Pressable
+          style={{
+            width: "100%",
+            flex: 1,
+
+            justifyContent: "flex-start",
+            alignItems: "center",
+          }}
+          onPress={() => navigation.goBack()}
+        >
+          <TouchableOpacity
+            style={{
+              marginTop: 32,
+              paddingHorizontal: 20,
+              paddingVertical: 10,
+              backgroundColor: theme.colors.text + "20",
+              borderRadius: 50,
+              borderCurve: "continuous",
+              flexDirection: "row",
+              justifyContent: "center",
+              alignItems: "center",
+              gap: 8,
+            }}
+            onPress={() => navigation.goBack()}
+          >
+            <X strokeWidth={2.6} size={20} color={theme.colors.text} />
+
+            <Text
+              style={{
+                color: theme.colors.text,
+                fontSize: 15,
+                lineHeight: 20,
+                textAlign: "center",
+                fontFamily: "semibold",
+              }}
+            >
+              Fermer
+            </Text>
+          </TouchableOpacity>
+        </Pressable>
+
+      </BlurView>
+    </View>
   );
 };
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    padding: 16,
-    backgroundColor: "black",
-  },
-  headerButton: {
-    padding: 8,
-    borderRadius: 50,
-    margin: 5,
-  },
-  qrCodeContainer: {
-    height: 200,
-    width: 200,
-    borderRadius: 15,
-    marginTop: 75,
-    alignSelf: "center",
-    backgroundColor: "#FFFFFF",
-  },
-  qrCodeInnerContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    width: 200,
-  },
-  instructionContainer: {
-    marginTop: 60,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  instructionText: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "bold",
-    textAlign: "center",
-    maxWidth: 200,
-  },
-  dotsContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 16,
-  },
-  dot: {
-    width: 7,
-    height: 7,
-    borderRadius: 5,
-    marginHorizontal: 4,
-  },
-  activeDot: {
-    backgroundColor: "#ffffff",
-  },
-  inactiveDot: {
-    backgroundColor: "#ffffff25",
-  },
-});
 
 export default RestaurantQrCode;

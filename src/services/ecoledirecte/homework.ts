@@ -7,6 +7,10 @@ import { log } from "@/utils/logger/logger";
 import { AttachmentType } from "../shared/Attachment";
 import { formatDate } from "@/services/ecoledirecte/format-date";
 
+const cleanContent = (message: string) => {
+  return message.replace(/>\s+/g, ">").replace(/&nbsp;/g, " ");
+};
+
 export const getHomeworkForWeek = async (
   account: EcoleDirecteAccount,
   weekNumber: number,
@@ -36,12 +40,13 @@ export const getHomeworkForWeek = async (
           name: att.name,
         })),
         color: "#000000", // TODO
-        content: homework.content,
+        content: cleanContent(homework.content),
         done: homework.done,
         due: date.getTime(),
         id: homework.id.toString(),
         subject: homework.subject,
         exam: homework.exam,
+        personalizate: false,
       });
     }
   }

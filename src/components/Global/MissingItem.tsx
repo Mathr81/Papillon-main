@@ -1,10 +1,14 @@
 import Reanimated, { AnimatedStyle, EntryExitTransition, FadeInUp, FadeOutDown, LinearTransition } from "react-native-reanimated";
 import { type StyleProp, Text, type ViewStyle } from "react-native";
 import { NativeText } from "./NativeComponents";
+import AnimatedEmoji from "../Grades/AnimatedEmoji";
 
 interface MissingItemProps {
   style?: StyleProp<AnimatedStyle<StyleProp<ViewStyle>>>;
-  emoji: string;
+  emoji?: string;
+  leading?: React.ReactNode;
+  trailing?: React.ReactNode;
+  animatedEmoji?: boolean;
   title: string;
   description: string;
   entering?: EntryExitTransition;
@@ -13,7 +17,10 @@ interface MissingItemProps {
 
 const MissingItem: React.FC<MissingItemProps> = ({
   style,
+  leading,
+  trailing,
   emoji,
+  animatedEmoji,
   title,
   description,
   entering,
@@ -25,15 +32,21 @@ const MissingItem: React.FC<MissingItemProps> = ({
       style={[{
         justifyContent: "center",
         alignItems: "center",
-        gap: 4,
-        paddingHorizontal: 40,
+        gap: 8,
+        paddingHorizontal: 20,
       }, style]}
       entering={entering ? entering : FadeInUp}
       exiting={exiting ? exiting : FadeOutDown}
     >
-      <Text style={{ fontSize: 32 }}>
-        {emoji}
-      </Text>
+      {leading && leading}
+
+      {!animatedEmoji ? emoji && (
+        <Text style={{ fontSize: 32 }}>
+          {emoji}
+        </Text>
+      ) : (
+        <AnimatedEmoji initialScale={1.2} size={40} />
+      )}
 
       <NativeText variant="title" style={{ textAlign: "center", marginTop: 3 }}>
         {title}
@@ -42,6 +55,8 @@ const MissingItem: React.FC<MissingItemProps> = ({
       <NativeText variant="subtitle" style={{textAlign: "center"}}>
         {description}
       </NativeText>
+
+      {trailing && trailing}
     </Reanimated.View>
   );
 };

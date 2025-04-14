@@ -1,14 +1,15 @@
 import React from "react";
 import type { Screen } from "@/router/helpers/types";
-import { useTheme } from "@react-navigation/native";
-import { CircleHelp } from "lucide-react-native";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
+import { BadgeX, CircleHelp } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {View, StyleSheet, Text, Alert} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAccounts } from "@/stores/account";
 import ButtonCta from "@/components/FirstInstallation/ButtonCta";
 import {ExternalAccount} from "@/stores/account/types";
-import {detectMealPrice} from "@/views/settings/ExternalAccount/ARD";
+import {detectMealPrice as ARDPriceDetector} from "@/views/settings/ExternalAccount/ARD";
+import { useAlert } from "@/providers/AlertProvider";
 
 type Props = {
   navigation: any;
@@ -23,9 +24,11 @@ const PriceError: Screen<"PriceError"> = ({ navigation, route }) => {
   const account = route.params?.account;
   const accountId = route.params?.accountId;
 
+  const { showAlert } = useAlert();
+
   const manualInput = () => {
     Alert.prompt(
-      "Entrez le prix d'un repas",
+      "Entre le prix d'un repas",
       "",
       [
         { text: "Annuler", onPress: () => {} },
@@ -46,8 +49,14 @@ const PriceError: Screen<"PriceError"> = ({ navigation, route }) => {
   };
 
   const reloadMealPrice = async () => {
-    const mealPrice = await detectMealPrice(account);
-    if (!mealPrice) return Alert.alert("Erreur", "Impossible de déterminer le prix d'un repas");
+    const mealPrice = await ARDPriceDetector(account);
+    if (!mealPrice) {
+      return showAlert({
+        title: "Erreur",
+        message: "Impossible de déterminer le prix d'un repas",
+        icon: <BadgeX />,
+      });
+    }
     update<ExternalAccount>(accountId, "authentication", { "mealPrice": mealPrice });
     navigation.pop();
     navigation.pop();

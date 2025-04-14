@@ -1,14 +1,14 @@
-import { View, Animated, Easing, type ViewStyle, type StyleProp } from "react-native";
+import { type ViewStyle, type StyleProp } from "react-native";
 import React, { useEffect, useRef, useState } from "react";
-import { useTheme } from "@react-navigation/native";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
 
 import Reanimated, { LinearTransition, ZoomIn, ZoomOut } from "react-native-reanimated";
 import { PressableScale } from "react-native-pressable-scale";
-import { Svg, Circle, G } from "react-native-svg";
 import { Check } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import PapillonSpinner from "./PapillonSpinner";
 import { animPapillon } from "@/utils/ui/animations";
+import useSoundHapticsWrapper from "@/utils/native/playSoundHaptics";
 
 interface CheckboxProps {
   checked?: boolean
@@ -29,6 +29,7 @@ const PapillonCheckbox: React.FC<CheckboxProps> = ({
 }) => {
   const theme = useTheme();
   const firstRender = useRef(true);
+  const { playHaptics } = useSoundHapticsWrapper();
 
   useEffect(() => {
     if (firstRender.current) {
@@ -41,14 +42,18 @@ const PapillonCheckbox: React.FC<CheckboxProps> = ({
   const pressAction = () => {
     onPress();
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    playHaptics("impact", {
+      impact: Haptics.ImpactFeedbackStyle.Light,
+    });
     setHasPressed(true);
   };
 
   // on checked change
   useEffect(() => {
     if (checked && hasPressed && loaded) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      playHaptics("notification", {
+        notification: Haptics.NotificationFeedbackType.Success,
+      });
     }
   }, [checked, hasPressed]);
 

@@ -2,10 +2,10 @@ import ButtonCta from "@/components/FirstInstallation/ButtonCta";
 import { NativeItem, NativeList, NativeListHeader, NativeText } from "@/components/Global/NativeComponents";
 import { useCurrentAccount } from "@/stores/account";
 import { useTimetableStore } from "@/stores/timetable";
-import { useTheme } from "@react-navigation/native";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
 import { Calendar, Info, QrCode, X } from "lucide-react-native";
 import React, { useEffect } from "react";
-import { Alert, Linking, Modal, Platform, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, Modal, TouchableOpacity, View } from "react-native";
 import { ScrollView } from "react-native-gesture-handler";
 
 import * as Clipboard from "expo-clipboard";
@@ -14,8 +14,9 @@ import { CameraView } from "expo-camera";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import PapillonSpinner from "@/components/Global/PapillonSpinner";
 import { fetchIcalData } from "@/services/local/ical";
-import { updateTimetableForWeekInCache } from "@/services/timetable";
 import {Screen} from "@/router/helpers/types";
+import { useAlert } from "@/providers/AlertProvider";
+import ResponsiveTextInput from "@/components/FirstInstallation/ResponsiveTextInput";
 
 const ical = require("cal-parser");
 
@@ -59,6 +60,8 @@ const LessonsImportIcal: Screen<"LessonsImportIcal"> = ({ route, navigation }) =
     }
   }, [defaultIcal]);
 
+  const { showAlert } = useAlert();
+
   const saveIcal = async () => {
     setLoading(true);
     const oldUrls = account.personalization.icalURLs || [];
@@ -69,7 +72,6 @@ const LessonsImportIcal: Screen<"LessonsImportIcal"> = ({ route, navigation }) =
         const parsed = ical.parseString(text);
         let newParsed = parsed;
         newParsed.events = [];
-        console.log(newParsed);
 
         const defaultTitle = "Mon calendrier" + (oldUrls.length > 0 ? ` ${oldUrls.length + 1}` : "");
 
@@ -84,7 +86,7 @@ const LessonsImportIcal: Screen<"LessonsImportIcal"> = ({ route, navigation }) =
         fetchIcalData(account);
       })
       .catch(() => {
-        Alert.alert("Erreur", "Impossible de récupérer les données du calendrier. Vérifiez l'URL et réessayez.");
+        Alert.alert("Erreur", "Impossible de récupérer les données du calendrier. Vérifie l'URL et réessaye.");
       })
       .finally(() => {
         setLoading(false);
@@ -186,7 +188,7 @@ const LessonsImportIcal: Screen<"LessonsImportIcal"> = ({ route, navigation }) =
             </TouchableOpacity>
           }
         >
-          <TextInput
+          <ResponsiveTextInput
             value={url}
             onChangeText={setUrl}
             placeholder="Adresse URL du calendrier"
@@ -239,7 +241,7 @@ const LessonsImportIcal: Screen<"LessonsImportIcal"> = ({ route, navigation }) =
                     text: "Copier l'URL",
                     onPress: () => {
                       Clipboard.setString(url.url);
-                      Alert.alert("Copié", "L'URL a été copiée dans le presse-papiers.");
+                      Alert.alert("URL copiée", url.url);
                     },
                   },
                   {

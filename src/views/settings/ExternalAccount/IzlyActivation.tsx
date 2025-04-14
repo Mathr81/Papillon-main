@@ -1,18 +1,19 @@
 import React, {useState, useEffect} from "react";
 import type {Screen} from "@/router/helpers/types";
-import {useTheme} from "@react-navigation/native";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
 import {SafeAreaView, useSafeAreaInsets} from "react-native-safe-area-context";
-import {Alert, Keyboard, KeyboardAvoidingView, StyleSheet, TextInput, TouchableWithoutFeedback, View} from "react-native";
+import { Alert, Keyboard, KeyboardAvoidingView, StyleSheet, TouchableWithoutFeedback, View} from "react-native";
 import PapillonShineBubble from "@/components/FirstInstallation/PapillonShineBubble";
-import {NativeItem, NativeList, NativeListHeader, NativeText,} from "@/components/Global/NativeComponents";
+import { NativeText,} from "@/components/Global/NativeComponents";
 import ButtonCta from "@/components/FirstInstallation/ButtonCta";
-import {extractActivationURL, tokenize} from "ezly";
-import {AlertTriangle} from "lucide-react-native";
+import { tokenize} from "ezly";
 import {AccountService, IzlyAccount} from "@/stores/account/types";
 import {useAccounts, useCurrentAccount} from "@/stores/account";
 import uuid from "@/utils/uuid-v4";
 
 import * as Linking from "expo-linking";
+import { useAlert } from "@/providers/AlertProvider";
+import { BadgeX } from "lucide-react-native";
 
 const IzlyActivation: Screen<"IzlyActivation"> = ({ navigation, route }) => {
   const theme = useTheme();
@@ -26,6 +27,8 @@ const IzlyActivation: Screen<"IzlyActivation"> = ({ navigation, route }) => {
   const secret = route.params?.password;
   const username = route.params?.username;
 
+  const { showAlert } = useAlert();
+
   useEffect(() => {
     const handleDeepLink = (event: { url: string }) => {
       const url = event.url;
@@ -37,6 +40,13 @@ const IzlyActivation: Screen<"IzlyActivation"> = ({ navigation, route }) => {
         console.log("[IzlyActivation] Ignoring link:", url);
       }
     };
+
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        handleDeepLink({ url });
+      }
+    });
+
     Linking.addEventListener("url", handleDeepLink);
   }, []);
 
@@ -69,11 +79,20 @@ const IzlyActivation: Screen<"IzlyActivation"> = ({ navigation, route }) => {
       navigation.pop();
     } catch (error) {
       if (error instanceof Error) {
-        Alert.alert("Erreur", error.message);
+        showAlert({
+          title: "Erreur",
+          message: error.message,
+          icon: <BadgeX />,
+        });
       }
       else {
-        Alert.alert("Erreur", "Une erreur est survenue lors de l'activation.");
-      }    }
+        showAlert({
+          title: "Erreur",
+          message: "Une erreur est survenue lors de l'activation.",
+          icon: <BadgeX />,
+        });
+      }
+    }
     finally {
       setLoading(false);
     }
@@ -109,17 +128,26 @@ const IzlyActivation: Screen<"IzlyActivation"> = ({ navigation, route }) => {
               textAlign: "center",
             }}
           >
-            Papillon ne donnera jamais vos informations d'authentification à des tiers.
+            Papillon ne donnera jamais tes informations d'authentification à des tiers.
           </NativeText>
 
           <View style={styles.buttons}>
             <ButtonCta
               value="Annuler"
               disabled={loading}
-              onPress={() => (Alert.alert("Annuler", "Êtes-vous sûr de vouloir annuler l'activation ?", [
-                { text: "Continer l'activation", style: "cancel" },
-                { text: "Confirmer", style: "destructive", onPress: () => navigation.pop() }
-              ]))}
+              onPress={() => {
+                Alert.alert("Annuler", "Veux-tu vraiment annuler l'activation ?", [
+                  {
+                    text: "Continuer",
+                    style: "cancel",
+                  },
+                  {
+                    text: "Annuler l'activation",
+                    onPress: () => navigation.pop(),
+                    style: "destructive",
+                  },
+                ]);
+              }}
             />
           </View>
         </SafeAreaView>

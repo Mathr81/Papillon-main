@@ -1,21 +1,12 @@
-import {RouteProp, useTheme} from "@react-navigation/native";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
 import React from "react";
-import {
-  Dimensions,
-  View,
-} from "react-native";
-import {
-  NativeItem,
-  NativeText,
-} from "@/components/Global/NativeComponents";
+import { View } from "react-native";
+import { NativeItem, NativeText } from "@/components/Global/NativeComponents";
 import parse_news_resume from "@/utils/format/format_pronote_news";
-import parse_initials from "@/utils/format/format_pronote_initials";
 import formatDate from "@/utils/format/format_date_complets";
-import InitialIndicator from "@/components/News/InitialIndicator";
-import {NativeStackNavigationProp} from "@react-navigation/native-stack";
-import {RouteParameters} from "@/router/helpers/types";
-import {Information} from "@/services/shared/Information";
-import { selectColorSeed } from "@/utils/format/select_color_seed";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { RouteParameters } from "@/router/helpers/types";
+import { Information } from "@/services/shared/Information";
 
 type NewsItem = Omit<Information, "date"> & { date: string, important: boolean };
 
@@ -34,66 +25,80 @@ const NewsListItem: React.FC<NewsListItemProps> = ({ index, message, navigation,
       onPress={() => {
         navigation.navigate("NewsItem", {
           message: JSON.stringify(message),
-          important: message.important !== undefined,
+          important: !!message.important,
           isED
         });
       }}
       chevron={false}
-      leading={
-        <InitialIndicator
-          initial={parse_initials(message.author)}
-          color={selectColorSeed(message.author)}
-        />
-      }
       separator={index !== parentMessages.length - 1}
     >
       <View style={{
         flexDirection: "row",
         alignItems: "center",
+        flex: 1,
+        gap: 10,
+        marginBottom: 2,
         justifyContent: "space-between",
       }}>
+        {message.title !== "" && (
+          <NativeText
+            numberOfLines={1}
+            variant="title"
+            style={{
+              flex: 1,
+            }}
+          >
+            {message.title ?? "Sans titre"}
+          </NativeText>)
+        }
+        {!message.read && !isED && (
+          <View
+            style={{
+              width: 9,
+              height: 9,
+              borderRadius: 5,
+              marginTop: 1,
+              backgroundColor: theme.colors.primary,
+            }}
+          />
+        )}
+      </View>
+
+      {message.content && (
+        <NativeText
+          numberOfLines={2}
+          variant="default"
+          style={{
+            lineHeight: 20,
+            opacity: 0.8,
+          }}
+        >
+          {!message.content.includes("<img")
+            ? parse_news_resume(message.content)
+            : "Contient une image"}
+        </NativeText>
+      )}
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginTop: 5,
+        }}
+      >
+        <NativeText
+          numberOfLines={1}
+          variant="subtitle"
+        >
+          {formatDate(message.date)}
+        </NativeText>
         <NativeText
           numberOfLines={1}
           variant="subtitle"
         >
           {message.author}
         </NativeText>
-
-        {!message.read && !isED && (
-          <View style={{
-            width: 8,
-            height: 8,
-            borderRadius: 5,
-            backgroundColor: theme.colors.primary,
-          }} />
-        )}
       </View>
-      {message.title !== "" && <NativeText
-        numberOfLines={1}
-        variant="title"
-      >
-        {message.title}
-      </NativeText>}
-
-      <NativeText
-        numberOfLines={2}
-        variant="default"
-        style={{
-          lineHeight: 20,
-          opacity: 0.8,
-        }}
-      >
-        {message.content ? parse_news_resume(message.content) : ""}
-      </NativeText>
-      <NativeText
-        numberOfLines={1}
-        variant="subtitle"
-        style={{
-          marginTop: 6,
-        }}
-      >
-        {formatDate(message.date)}
-      </NativeText>
     </NativeItem>
   );
 };

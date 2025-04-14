@@ -1,5 +1,5 @@
 import React, { memo, useEffect, useState } from "react";
-import { Image, View, StyleSheet, Text } from "react-native";
+import { Image, View, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Reanimated, { LinearTransition, FlipInXDown } from "react-native-reanimated";
 
@@ -9,26 +9,28 @@ import PapillonShineBubble from "@/components/FirstInstallation/PapillonShineBub
 import DuoListPressable from "@/components/FirstInstallation/DuoListPressable";
 import ButtonCta from "@/components/FirstInstallation/ButtonCta";
 import MaskStars from "@/components/FirstInstallation/MaskStars";
-import { useAlert } from "@/providers/AlertProvider";
-import { Audio } from "expo-av";
-import { useTheme } from "@react-navigation/native";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
 import GetV6Data from "@/utils/login/GetV6Data";
-import { Check, School, Undo2 } from "lucide-react-native";
-import Constants from "expo-constants";
+import { Check, School, WifiOff } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { sr } from "date-fns/locale";
+import useSoundHapticsWrapper from "@/utils/native/playSoundHaptics";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { useAlert } from "@/providers/AlertProvider";
 
 const ServiceSelector: Screen<"ServiceSelector"> = ({ navigation }) => {
   const theme = useTheme();
   const { colors } = theme;
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
 
+  const { isOnline } = useOnlineStatus();
   const { showAlert } = useAlert();
 
   type Services = "pronote" | "ed" | "skolengo";
   const [service, setService] = useState<Services | null>(null);
 
   const [v6Data, setV6Data] = useState<any | null>(null);
+
+  const { playSound } = useSoundHapticsWrapper();
+  const LEson = require("@/../assets/sound/1.wav");
 
   useEffect(() => {
     setTimeout(async () => {
@@ -53,7 +55,7 @@ const ServiceSelector: Screen<"ServiceSelector"> = ({ navigation }) => {
       image: require("../../../assets/images/service_pronote.png"),
       login: () => {
         navigation.navigate("PronoteAuthenticationSelector");
-        playSound();
+        playSound(LEson);
       },
     },
     {
@@ -62,7 +64,7 @@ const ServiceSelector: Screen<"ServiceSelector"> = ({ navigation }) => {
       image: require("../../../assets/images/service_ed.png"),
       login: () => {
         navigation.navigate("EcoleDirecteCredentials");
-        playSound();
+        playSound(LEson);
       }
     },
     {
@@ -71,47 +73,21 @@ const ServiceSelector: Screen<"ServiceSelector"> = ({ navigation }) => {
       image: require("../../../assets/images/service_skolengo.png"),
       login: () => {
         navigation.navigate("SkolengoAuthenticationSelector");
-        playSound();
+        playSound(LEson);
       }
     },
     {
       name: "university",
-      title: "Universités et autres",
+      title: "Enseignement supérieur",
+      subtitle: "Universités, IUT, écoles, etc.",
       image: require("../../../assets/images/service_skolengo.png"),
       icon: <School />,
       login: () => {
         navigation.navigate("IdentityProviderSelector");
-        playSound();
+        playSound(LEson);
       }
     },
   ];
-
-  const UnsupportedAlert = () => {
-    showAlert({
-      title: "Service non supporté",
-      message: "Désolé, ce service n'est pas encore supporté. Veuillez réessayer dans une prochaine version."
-    });
-  };
-
-  useEffect(() => {
-    const loadSound = async () => {
-      const { sound } = await Audio.Sound.createAsync(
-        require("@/../assets/sound/1.wav")
-      );
-
-      setSound(sound);
-    };
-
-    loadSound();
-
-    return () => {
-      if (sound) {
-        sound.unloadAsync();
-      }
-    };
-  }, []);
-
-  const playSound = () => sound?.replayAsync();
 
   return (
     <SafeAreaView style={styles.container}>
@@ -193,6 +169,7 @@ const ServiceSelector: Screen<"ServiceSelector"> = ({ navigation }) => {
                     />
                 }
                 text={srv.title}
+                subtext={srv.subtitle}
                 enabled={srv.name === service}
                 onPress={() => setService(srv.name as Services)}
               />
@@ -206,7 +183,24 @@ const ServiceSelector: Screen<"ServiceSelector"> = ({ navigation }) => {
           primary
           value="Confirmer"
           disabled={service === null}
-          onPress={services.find((srv) => srv.name === service)?.login}
+          onPress={
+            isOnline
+              ? services.find((srv) => srv.name === service)?.login
+              : () => {
+                showAlert({
+                  title: "Information",
+                  message:
+                      "Pour poursuivre la connexion, tu dois être connecté à Internet. Vérifie ta connexion Internet et réessaie",
+                  icon: <WifiOff />,
+                  actions: [
+                    {
+                      title: "OK",
+                      icon: <Check />,
+                    },
+                  ],
+                });
+              }
+          }
         />
 
         {v6Data && v6Data.restore && (

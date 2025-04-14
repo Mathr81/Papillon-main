@@ -1,41 +1,26 @@
-import React, { useEffect, useState } from "react";
-import { Alert, StyleSheet, View } from "react-native";
+import React, { useState } from "react";
+import { StyleSheet, View } from "react-native";
 
-import { QrCodeIcon, LinkIcon, MapPinIcon, SearchIcon } from "lucide-react-native";
+import { MapPinIcon, SearchIcon, LockIcon } from "lucide-react-native";
 import type { Screen } from "@/router/helpers/types";
 import { SafeAreaView } from "react-native-safe-area-context";
 import ButtonCta from "@/components/FirstInstallation/ButtonCta";
-import { useTheme } from "@react-navigation/native";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
 import MaskStars from "@/components/FirstInstallation/MaskStars";
 import PapillonShineBubble from "@/components/FirstInstallation/PapillonShineBubble";
 import Reanimated, { LinearTransition, FlipInXDown } from "react-native-reanimated";
 import DuoListPressable from "@/components/FirstInstallation/DuoListPressable";
-import { Audio } from "expo-av";
+import { NativeText } from "@/components/Global/NativeComponents";
+import useSoundHapticsWrapper from "@/utils/native/playSoundHaptics";
 
 const SkolengoAuthenticationSelector: Screen<"SkolengoAuthenticationSelector"> = ({ navigation }) => {
   const theme = useTheme();
 
   type Methods = "geolocation" | "manual-location" | "manual-url" | "qr-code";
   const [method, setMethod] = useState<Methods | null>(null);
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
 
-  const loadSound = async () => {
-    const { sound } = await Audio.Sound.createAsync(
-      require("@/../assets/sound/2.wav")
-    );
-
-    setSound(sound);
-  };
-
-  useEffect(() => {
-    loadSound();
-
-    return () => {
-      sound?.unloadAsync();
-    };
-  }, []);
-
-  const playSound = () => void sound?.replayAsync();
+  const { playSound } = useSoundHapticsWrapper();
+  const LEson = require("@/../assets/sound/2.wav");
 
   const handleConfirmation = () => {
     switch (method) {
@@ -47,7 +32,7 @@ const SkolengoAuthenticationSelector: Screen<"SkolengoAuthenticationSelector"> =
         break;
     }
 
-    playSound();
+    playSound(LEson);
   };
 
   return (
@@ -58,7 +43,7 @@ const SkolengoAuthenticationSelector: Screen<"SkolengoAuthenticationSelector"> =
         message="Que préfères-tu pour te connecter à Skolengo ?"
         numberOfLines={2}
         width={260}
-        offsetTop={"16%"}
+        offsetTop={"20%"}
       />
 
       <Reanimated.View
@@ -102,6 +87,31 @@ const SkolengoAuthenticationSelector: Screen<"SkolengoAuthenticationSelector"> =
       </Reanimated.View>
 
       <View style={styles.buttons}>
+        <View
+          style={{
+            gap: 12,
+            alignItems: "center",
+            marginBottom: 9,
+            marginHorizontal: 9,
+          }}
+        >
+          <LockIcon
+            size={20}
+            strokeWidth={2.5}
+            color={theme.colors.text + "88"}
+          />
+          <NativeText
+            style={{
+              color: theme.colors.text,
+              opacity: 0.5,
+              fontSize: 13,
+              lineHeight: 16,
+            }}
+          >
+            Papillon n'est pas affilié à Skolengo. Tes données restent uniquement sur ton appareil de manière sécurisée.
+          </NativeText>
+        </View>
+
         <ButtonCta
           primary
           value="Confirmer"

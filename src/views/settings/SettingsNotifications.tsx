@@ -1,27 +1,91 @@
 import React, { useEffect, useState } from "react";
-import { Text, ScrollView, View, TouchableOpacity, StyleSheet, Image, Switch } from "react-native";
+import { ScrollView, Switch } from "react-native";
 import type { Screen } from "@/router/helpers/types";
-import { useTheme } from "@react-navigation/native";
-import { Bell, ChevronLeft, MegaphoneOff, CalendarCheck, BookCheck, TrendingUp, Backpack, ChefHat } from "lucide-react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Reanimated, { useSharedValue, useAnimatedStyle, withTiming, LinearTransition } from "react-native-reanimated";
-import { NativeIcon, NativeItem, NativeList, NativeListHeader, NativeText } from "@/components/Global/NativeComponents";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
+import {
+  CalendarCheck,
+  BookCheck,
+  TrendingUp,
+  Newspaper,
+  NotepadText,
+  BookPlus,
+} from "lucide-react-native";
+import {
+  FadeInDown,
+  FadeOutUp,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
+import {
+  NativeIcon,
+  NativeItem,
+  NativeList,
+  NativeListHeader,
+  NativeText,
+} from "@/components/Global/NativeComponents";
 import NotificationContainerCard from "@/components/Settings/NotificationContainerCard";
-import { requestNotificationPermission } from "@/background/Notifications";
-import { alertExpoGo, isExpoGo } from "@/utils/native/expoGoAlert";
+import {
+  createChannelNotification,
+  requestNotificationPermission,
+} from "@/background/Notifications";
+import { useCurrentAccount } from "@/stores/account";
+import InsetsBottomView from "@/components/Global/InsetsBottomView";
+import { anim2Papillon } from "@/utils/ui/animations";
+import { useAlert } from "@/providers/AlertProvider";
 
-const SettingsNotifications: Screen<"SettingsNotifications"> = () => {
+const SettingsNotifications: Screen<"SettingsNotifications"> = ({
+  navigation,
+}) => {
   const theme = useTheme();
-  const [enabled, setEnabled] = useState(false);
+  const { colors } = theme;
+  const { showAlert } = useAlert();
+
+  // User data
+  const account = useCurrentAccount((store) => store.account!);
+  const mutateProperty = useCurrentAccount((store) => store.mutateProperty);
+  const notifications = account.personalization.notifications;
+
+  // Global state
+  const [enabled, setEnabled] = useState<boolean | null | undefined>(
+    notifications?.enabled ?? false
+  );
+
+  useEffect(() => {
+    const handleNotificationPermission = async () => {
+      const statut = await requestNotificationPermission(showAlert);
+      if (!statut) {
+        if (statut === undefined) {
+          setEnabled(undefined);
+        } else {
+          setEnabled(null);
+        }
+
+        if (notifications?.enabled) {
+          setTimeout(() => {
+            mutateProperty("personalization", {
+              notifications: { ...notifications, enabled: false },
+            });
+          }, 1500);
+        }
+      } else if (enabled !== null) {
+        if (enabled) createChannelNotification();
+        setTimeout(() => {
+          mutateProperty("personalization", {
+            notifications: { ...notifications, enabled },
+          });
+        }, 1500);
+      }
+    };
+
+    handleNotificationPermission();
+  }, [enabled]);
 
   // Animation states
   const opacity = useSharedValue(0);
+  const invertedOpacity = useSharedValue(1);
   const borderRadius = useSharedValue(20);
   const width = useSharedValue("90%");
   const marginBottom = useSharedValue(0);
-
-  // New shared value for inverted opacity
-  const invertedOpacity = useSharedValue(1);
 
   // Animation effects
   useEffect(() => {
@@ -32,18 +96,50 @@ const SettingsNotifications: Screen<"SettingsNotifications"> = () => {
     marginBottom.value = withTiming(enabled ? 0 : -10, { duration: 200 });
   }, [enabled]);
 
-  const askEnabled = async (enabled: boolean) => {
-    if (isExpoGo()) {
-      alertExpoGo();
-      return;
-    }
-
-    if (enabled) {
-      await requestNotificationPermission();
-    }
-
-    setEnabled(enabled);
+  const askEnabled = async (newValue: boolean) => {
+    setEnabled(newValue);
   };
+
+  // Schoolary notifications
+  const notificationSchoolary = [
+    {
+      icon: <NativeIcon icon={<CalendarCheck />} color={colors.primary} />,
+      title: "Changement de cours",
+      message: "Musique (10:00-11:00) : Prof. absent",
+      personalizationValue: "timetable",
+    },
+    {
+      icon: <NativeIcon icon={<BookCheck />} color={colors.primary} />,
+      title: "Nouveau devoir",
+      message: "Un nouveau devoir en Mathématiques a été publié",
+      personalizationValue: "homeworks",
+    },
+    {
+      icon: <NativeIcon icon={<TrendingUp />} color={colors.primary} />,
+      title: "Nouvelle note",
+      message: "Une nouvelle note en Anglais a été publiée",
+      personalizationValue: "grades",
+    },
+    {
+      icon: <NativeIcon icon={<Newspaper />} color={colors.primary} />,
+      title: "Nouvelle actualité",
+      message:
+        "Chers élèves, chers collègues, Dans le cadre du prix \"Non au harcèlement\", 9 affiches ont été réa...",
+      personalizationValue: "news",
+    },
+    {
+      icon: <NativeIcon icon={<NotepadText />} color={colors.primary} />,
+      title: "Vie Scolaire",
+      message: "Tu as été en retard de 5 min à 11:10",
+      personalizationValue: "attendance",
+    },
+    {
+      icon: <NativeIcon icon={<BookPlus />} color={colors.primary} />,
+      title: "Nouvelle compétence",
+      message: "Une nouvelle compétence en Histoire a été publiée",
+      personalizationValue: "evaluation",
+    },
+  ];
 
   return (
     <ScrollView
@@ -56,159 +152,73 @@ const SettingsNotifications: Screen<"SettingsNotifications"> = () => {
         theme={theme}
         isEnable={enabled}
         setEnabled={askEnabled}
+        navigation={navigation}
       />
 
-      {/*
-      <NativeList>
-        <NativeItem
-          leading={<NativeIcon icon={<CalendarCheck />} color={colors.primary} />}
-          trailing={
-            <Switch
-              trackColor={{
-                false: colors.border,
-                true: colors.primary,
-              }}
-              style={{
-                marginRight: 10,
-              }}
-            />
-          }
-        >
-          <NativeText variant="title">Modification de cours</NativeText>
-          <NativeText
-            style={{
-              color: colors.text + "80",
-            }}
-          >Cours de mathématiques annulé dans 10 minutes</NativeText>
-        </NativeItem>
+      {enabled && (
+        <>
+          <NativeListHeader
+            label="Notifications scolaires"
+            animated
+            entering={anim2Papillon(FadeInDown).delay(50)}
+            exiting={anim2Papillon(FadeOutUp)}
+          />
+          <NativeList
+            animated
+            entering={anim2Papillon(FadeInDown)}
+            exiting={anim2Papillon(FadeOutUp).delay(50)}
+          >
+            {notificationSchoolary.map((notification, index) => (
+              <NativeItem
+                key={index}
+                leading={notification.icon}
+                animated
+                entering={anim2Papillon(FadeInDown).delay(70 * index)}
+                trailing={
+                  <Switch
+                    trackColor={
+                      {
+                        false: colors.border,
+                        true: theme.colors.primary
+                      }
+                    }
+                    thumbColor={theme.dark ? colors.text : colors.background}
+                    value={
+                      account.personalization.notifications?.[
+                        notification.personalizationValue as keyof typeof notifications
+                      ] ?? false
+                    }
+                    onValueChange={(value) => {
+                      mutateProperty("personalization", {
+                        notifications: {
+                          ...notifications,
+                          [notification.personalizationValue]: value,
+                        },
+                      });
+                    }}
+                    style={{
+                      marginRight: 10,
+                    }}
+                  />
+                }
+              >
+                <NativeText variant="title">{notification.title}</NativeText>
+                <NativeText
+                  style={{
+                    color: colors.text + "80",
+                  }}
+                >
+                  {notification.message}
+                </NativeText>
+              </NativeItem>
+            ))}
+          </NativeList>
+        </>
+      )}
 
-        <NativeItem
-          leading={<NativeIcon icon={<BookCheck />} color={colors.primary} />}
-          trailing={
-            <Switch
-              trackColor={{
-                false: colors.border,
-                true: colors.primary,
-              }}
-              style={{
-                marginRight: 10,
-              }}
-            />
-          }
-        >
-          <NativeText variant="title" >Travail à faire pour demain</NativeText>
-          <NativeText
-            style={{
-              color: colors.text + "80",
-            }}
-          >N’oublie pas de terminer ton devoir de français pour demain</NativeText>
-        </NativeItem>
-
-        <NativeItem
-          leading={<NativeIcon icon={<TrendingUp />} color={colors.primary} />}
-          trailing={
-            <Switch
-              trackColor={{
-                false: colors.border,
-                true: colors.primary,
-              }}
-              style={{
-                marginRight: 10,
-              }}
-            />
-          }
-        >
-          <NativeText variant="title" >Nouvelle note</NativeText>
-          <NativeText
-            style={{
-              color: colors.text + "80",
-            }}
-          >Nouvelle note disponible : 18/20 en histoire</NativeText>
-        </NativeItem>
-      </NativeList>
-
-      <NativeList>
-        <NativeItem
-          leading={<NativeIcon icon={<Backpack />} color={colors.primary} />}
-          trailing={
-            <Switch
-              trackColor={{
-                false: colors.border,
-                true: colors.primary,
-              }}
-              style={{
-                marginRight: 10,
-              }}
-            />
-          }
-        >
-          <NativeText variant="title">Faire son sac</NativeText>
-          <NativeText
-            style={{
-              color: colors.text + "80",
-            }}
-          >N’oublie pas de préparer ton sac pour les cours de demain</NativeText>
-        </NativeItem>
-
-        <NativeItem
-          leading={<NativeIcon icon={<ChefHat />} color={colors.primary} />}
-          trailing={
-            <Switch
-              trackColor={{
-                false: colors.border,
-                true: colors.primary,
-              }}
-              style={{
-                marginRight: 10,
-              }}
-            />
-          }
-        >
-          <NativeText variant="title">Réserver le self</NativeText>
-          <NativeText
-            style={{
-              color: colors.text + "80",
-            }}
-          >Pense à réserver ton repas pour demain, journée de cours prévue</NativeText>
-        </NativeItem>
-      </NativeList>
-      */}
-
+      <InsetsBottomView />
     </ScrollView>
   );
 };
-
-// Styles
-const styles = StyleSheet.create({
-  title: {
-    color: "#222222",
-    fontSize: 15,
-  },
-  time: {
-    color: "#3F3F3F",
-    opacity: 0.5,
-    textAlign: "right",
-    fontSize: 13,
-    marginRight: 10,
-  },
-  message: {
-    color: "#3F3F3F",
-    fontSize: 14,
-    maxWidth: "85%",
-    minWidth: "85%",
-    lineHeight: 15,
-    letterSpacing: -0.4,
-  },
-
-  overlay: {
-    backgroundColor: "#EEF5F5",
-    borderWidth: 1,
-    borderColor: "#00000030",
-    borderRadius: 20,
-    height: 25,
-    padding: 9,
-    marginHorizontal: 20,
-  },
-});
 
 export default SettingsNotifications;

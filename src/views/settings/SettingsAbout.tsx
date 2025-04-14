@@ -1,19 +1,18 @@
 import React, { useEffect, useState } from "react";
 import { ScrollView, Image, StyleSheet, View } from "react-native";
 import type { Screen } from "@/router/helpers/types";
-import { useTheme } from "@react-navigation/native";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
 import { Euro, Github, MapPin, MessageCircle } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeList, NativeItem, NativeListHeader } from "@/components/Global/NativeComponents";
 import { NativeIcon } from "@/components/Global/NativeComponents";
 import { NativeText } from "@/components/Global/NativeComponents";
-import AppJSON from "../../../app.json";
 import PackageJSON from "../../../package.json";
 import AboutContainerCard from "@/components/Settings/AboutContainerCard";
 import * as Linking from "expo-linking";
 import teams from "@/utils/data/teams.json";
-import Constants from "expo-constants";
 import { getContributors, Contributor } from "@/utils/GetRessources/GetContribs";
+import { isExpoGo } from "@/utils/native/expoGoAlert";
 
 const SettingsAbout: Screen<"SettingsAbout"> = ({ navigation }) => {
   const theme = useTheme();
@@ -159,7 +158,19 @@ const SettingsAbout: Screen<"SettingsAbout"> = ({ navigation }) => {
               }}
             />}
           >
-            <NativeText variant="title">{contributor.login}</NativeText>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              <NativeText variant="title">{contributor.login}</NativeText>
+              <Github size={18} color={colors.text} strokeWidth={2.5} />
+            </View>
+            <NativeText variant="subtitle">
+              {contributor.contributions} contribution{contributor.contributions > 1 ? "s" : ""}
+            </NativeText>
           </NativeItem>
         ))}
       </NativeList>
@@ -177,7 +188,7 @@ const SettingsAbout: Screen<"SettingsAbout"> = ({ navigation }) => {
             Version de l'application
           </NativeText>
           <NativeText variant="subtitle">
-            ver. {AppJSON.expo.version} {Constants.appOwnership === "expo" ? "(Expo Go)" : ""} {__DEV__ ? "(debug)" : ""}
+            ver. {PackageJSON.version} {isExpoGo() ? "(Expo Go)" : ""} {__DEV__ ? "(debug)" : ""}
           </NativeText>
         </NativeItem>
         <NativeItem
@@ -187,11 +198,14 @@ const SettingsAbout: Screen<"SettingsAbout"> = ({ navigation }) => {
           <NativeText variant="title">
             Version des dépendances
           </NativeText>
-          {PackageJSON.dependencies["react-native"] && (
-            <NativeText variant="subtitle">
-              RN : {PackageJSON.dependencies["react-native"].split("^")[1]} | Expo : {(PackageJSON.devDependencies?.expo || PackageJSON.dependencies?.expo)?.split("^")[1]}
-            </NativeText>
-          )}
+          <NativeText variant="subtitle">
+            RN : {PackageJSON.dependencies["react-native"].split("^")[1]} |
+            Expo :{" "}
+            {(
+              PackageJSON.devDependencies.expo ||
+              PackageJSON.dependencies.expo
+            ).replace("^", "").replace("~", "")}
+          </NativeText>
         </NativeItem>
       </NativeList>
 

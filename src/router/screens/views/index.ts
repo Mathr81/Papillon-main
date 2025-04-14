@@ -1,6 +1,5 @@
 import createScreen from "@/router/helpers/create-screen";
 
-import NoteReaction from "@/views/account/NoteReaction";
 import SettingsTabs from "@/views/settings/SettingsTabs";
 import RestaurantQrCode from "@/views/account/Restaurant/Modals/QrCode";
 import NewsItem from "@/views/account/News/Document";
@@ -8,19 +7,25 @@ import AddonLogs from "@/views/addon/AddonLogs";
 import AddonPage from "@/views/addon/AddonPage";
 import GradeSubjectScreen from "@/views/account/Grades/Modals/Subject";
 import GradeDocument from "@/views/account/Grades/Document";
-import RestaurantHistory from "@/views/account/Restaurant/Modals/History";
 import ChatCreate from "@/views/account/Chat/Modals/ChatCreate";
 import Chat from "@/views/account/Chat/Modals/Chat";
 import HomeworksDocument from "@/views/account/Homeworks/Document";
 import LessonsImportIcal from "@/views/account/Lessons/Options/LessonsImportIcal";
 import LessonDocument from "@/views/account/Lessons/Document";
-import ScodocWebview from "@/views/login/IdentityProvider/actions/BackgroundIUTLannion";
-import ScodocBackgroundWebview from "@/views/login/IdentityProvider/actions/BackgroundIUTLannion";
 import BackgroundIUTLannion from "@/views/login/IdentityProvider/actions/BackgroundIUTLannion";
 import { Platform } from "react-native";
+import GradeReaction from "@/views/account/Grades/Modals/GradeReaction";
+import EvaluationDocument from "@/views/account/Evaluation/Document";
+import BackgroundIdentityProvider from "@/views/login/IdentityProvider/BackgroundIdentityProvider";
+import ChatDetails from "@/views/account/Chat/Modals/ChatDetails";
+import ChatThemes from "@/views/account/Chat/Modals/ChatThemes";
+import RestaurantCardDetail from "@/views/account/Restaurant/Modals/CardDetail";
+import RestaurantPaymentSuccess from "@/views/account/Restaurant/Modals/PaymentSuccess";
+import AddHomeworkScreen from "@/views/account/Homeworks/AddHomework";
+import CustomizeHeader from "@/views/account/Home/Modal/CustomizeHeader";
 
 export default [
-  createScreen("NoteReaction", NoteReaction, {
+  createScreen("GradeReaction", GradeReaction, {
     headerTitle: "",
     headerTransparent: true,
     presentation: "modal",
@@ -28,12 +33,24 @@ export default [
   createScreen("RestaurantQrCode", RestaurantQrCode, {
     headerTitle: "",
     headerTransparent: true,
-    presentation: "fullScreenModal",
+    presentation: "transparentModal",
+    animation: "fade",
+    animationDuration: 100,
   }),
-  createScreen("RestaurantHistory", RestaurantHistory, {
-    headerTitle: "",
-    headerTransparent: true,
+  createScreen("RestaurantPaymentSuccess", RestaurantPaymentSuccess, {
+    headerTitle: "Paiement effectué",
+    headerShown: true,
     presentation: "modal",
+  }),
+  createScreen("RestaurantCardDetail", RestaurantCardDetail, {
+    headerShown: Platform.OS == "android" ? false : true,
+    headerTransparent: true,
+    presentation: Platform.OS == "android" ? "modal" : "formSheet",
+    sheetCornerRadius: 16,
+    sheetGrabberVisible: true,
+    sheetExpandsWhenScrolledToEdge: true,
+    // @ts-expect-error
+    sheetInitialDetent: 0,
   }),
   createScreen("SettingsTabs", SettingsTabs, {
     headerTitle: "Onglets et navigation",
@@ -60,31 +77,79 @@ export default [
     headerTitle: "Cours",
     presentation: "modal",
     headerShown: false,
+    sheetCornerRadius: 16,
   }),
   createScreen("HomeworksDocument", HomeworksDocument, {
     headerTitle: "Devoir",
     presentation: "modal",
     headerShown: false,
+    sheetCornerRadius: 16,
+  }),
+  createScreen("AddHomework", AddHomeworkScreen, {
+    headerTitle: "Ajouter un devoir",
+    presentation: "formSheet",
+    headerShown: true,
+    sheetCornerRadius: 16,
+    sheetAllowedDetents: [0.6, 1],
+    sheetGrabberVisible: true,
+    // @ts-expect-error
+    sheetInitialDetentIndex: 0,
+  }),
+  createScreen("CustomizeHeader", CustomizeHeader, {
+    headerTitle: "Personnaliser",
+    presentation: "formSheet",
+    headerShown: true,
+    sheetCornerRadius: 16,
+    sheetAllowedDetents: [0.5, 0.7],
+    sheetGrabberVisible: true,
+    // @ts-expect-error
+    sheetInitialDetentIndex: 0,
   }),
   createScreen("GradeSubject", GradeSubjectScreen, {
     headerTitle: "Détail de la matière",
     presentation: "modal",
+    sheetCornerRadius: 16,
   }),
   createScreen("GradeDocument", GradeDocument, {
     headerTitle: "Détail de la note",
     presentation: "modal",
     headerShown: Platform.OS !== "ios",
+    sheetCornerRadius: 24,
   }),
   createScreen("ChatCreate", ChatCreate, {
-    headerTitle: "Nouvelle discussion",
+    headerTitle: "Créer une discussion",
     presentation: "modal",
   }),
   createScreen("Chat", Chat, {
-    presentation: "modal",
+    headerTitle: "Discussions",
     headerShown: false,
+    presentation: "modal",
+    gestureEnabled: false,
+  }),
+  createScreen("ChatDetails", ChatDetails, {
+    headerTitle: "Discussions",
+    headerShown: false,
+    presentation: "modal",
+  }),
+  createScreen("ChatThemes", ChatThemes, {
+    headerTitle: "Thèmes",
+    headerShown: true,
+    presentation: "modal",
   }),
   createScreen("BackgroundIUTLannion", BackgroundIUTLannion, {
     headerTitle: "IUT de Lannion",
+    presentation: "transparentModal",
+    headerShown: false,
+    animation: "fade",
+    animationDuration: 100,
+  }),
+  createScreen("EvaluationDocument", EvaluationDocument, {
+    headerTitle: "Compétence",
+    presentation: "modal",
+    headerShown: Platform.OS !== "ios",
+  }),
+  createScreen("BackgroundIdentityProvider", BackgroundIdentityProvider, {
+    headerTitle: "Fournisseur d'identité",
     presentation: "modal",
   }),
 ] as const;

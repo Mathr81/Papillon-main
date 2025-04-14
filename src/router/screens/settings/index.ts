@@ -4,13 +4,13 @@ import SettingsNotifications from "@/views/settings/SettingsNotifications";
 import SettingsProfile from "@/views/settings/SettingsProfile";
 import SettingsTrophies  from "@/views/settings/SettingsTrophies";
 import SettingsAbout from "@/views/settings/SettingsAbout";
+import SettingsSupport from "@/views/settings/SettingsSupport";
 import SettingsIcons from "@/views/settings/SettingsIcons";
 import SettingsSubjects from "@/views/settings/SettingsSubjects";
 import SettingsExternalServices from "@/views/settings/SettingsExternalServices";
 import SettingsMagic from "@/views/settings/SettingsMagic";
 import SettingsAddons from "@/views/settings/SettingsAddons";
 import AddonPage from "@/views/addon/AddonPage";
-import { create } from "lodash";
 import ExternalAccountSelectMethod from "@/views/settings/ExternalAccount/SelectMethod";
 import SettingsFlags from "@/views/settings/SettingsFlags";
 import SettingsDevLogs from "@/views/settings/SettingsDevLogs";
@@ -25,12 +25,22 @@ import PriceBeforeScan from "@/views/settings/ExternalAccount/PriceBeforeScan";
 import SettingsFlagsInfos from "@/views/settings/SettingsFlagsInfos";
 import ExternalIzlyLogin from "@/views/settings/ExternalAccount/Izly";
 import IzlyActivation from "@/views/settings/ExternalAccount/IzlyActivation";
+import SettingsReactions from "@/views/settings/SettingsReactions";
+import TurboselfAccountSelector from "@/views/settings/ExternalAccount/TurboselfAccountSelector";
+import ExternalAliseLogin from "@/views/settings/ExternalAccount/Alise";
+import SettingsMultiService from "@/views/settings/SettingsMultiService";
+import SettingsMultiServiceSpace from "@/views/settings/SettingsMultiServiceSpace";
+import SettingsAccessibility from "@/views/settings/SettingsAccessibility";
+import SettingsGeneral from "@/views/settings/SettingsGeneral";
+import SettingsPersonalization from "@/views/settings/SettingsPersonalization";
+import SettingsExperimental from "@/views/settings/SettingsExperimental";
+import SettingsProject from "@/views/settings/SettingsProject";
 
 const settingsScreens = [
   createScreen("Settings", Settings, {
     presentation: "modal",
     headerTitle: "Paramètres",
-    headerShown: false,
+    headerShown: true,
   }),
   createScreen("SettingsNotifications", SettingsNotifications, {
     headerTitle: "Notifications",
@@ -44,6 +54,9 @@ const settingsScreens = [
   createScreen("SettingsAbout", SettingsAbout, {
     headerTitle: "À propos",
   }),
+  createScreen("SettingsSupport", SettingsSupport, {
+    headerTitle: "Contacter le support",
+  }),
   createScreen("SettingsIcons", SettingsIcons, {
     headerTitle: "Icônes",
   }),
@@ -55,11 +68,20 @@ const settingsScreens = [
   createScreen("SettingsSubjects", SettingsSubjects, {
     headerTitle: "Matières",
   }),
+  createScreen("SettingsReactions", SettingsReactions, {
+    headerTitle: "Mes réactions",
+  }),
   createScreen("SettingsExternalServices", SettingsExternalServices, {
     headerTitle: "Services externes",
   }),
   createScreen("SettingsMagic", SettingsMagic, {
     headerTitle: "Papillon Magic",
+  }),
+  createScreen("SettingsMultiService", SettingsMultiService, {
+    headerTitle: "Multiservice",
+  }),
+  createScreen("SettingsMultiServiceSpace", SettingsMultiServiceSpace, {
+    headerTitle: "Gérer l'environnement multi-service",
   }),
   createScreen("SettingsAddons", SettingsAddons, {
     headerTitle: "Extensions",
@@ -101,9 +123,19 @@ const settingsScreens = [
   createScreen("ExternalIzlyLogin", ExternalIzlyLogin, {
     headerTitle: "Connexion à Izly",
   }),
+  createScreen("ExternalAliseLogin", ExternalAliseLogin, {
+    headerTitle: "Connexion à Alise",
+  }),
 
   createScreen("IzlyActivation", IzlyActivation, {
     headerTitle: "Configuration de Izly",
+    presentation: "modal",
+    headerBackVisible: false,
+    gestureEnabled: false,
+
+  }),
+  createScreen("TurboselfAccountSelector", TurboselfAccountSelector, {
+    headerTitle: "Configuration de Turboself",
     presentation: "modal",
     headerBackVisible: false,
     gestureEnabled: false,
@@ -116,6 +148,21 @@ const settingsScreens = [
 
   createScreen("SettingsDonorsList", SettingsDonorsList, {
     headerTitle: "Donateurs",
+  }),
+  createScreen("SettingsAccessibility", SettingsAccessibility, {
+    headerTitle: "Accessibilité",
+  }),
+  createScreen("SettingsGeneral", SettingsGeneral, {
+    headerTitle: "Général",
+  }),
+  createScreen("SettingsPersonalization", SettingsPersonalization, {
+    headerTitle: "Personnalisation",
+  }),
+  createScreen("SettingsExperimental", SettingsExperimental, {
+    headerTitle: "Expérimental",
+  }),
+  createScreen("SettingsProject", SettingsProject, {
+    headerTitle: "Projet Papillon",
   }),
 ] as const;
 

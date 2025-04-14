@@ -7,11 +7,11 @@ import * as FileSystem from "expo-file-system";
 import { Asset } from "expo-asset";
 import BottomSheet from "@/components/Modals/PapillonBottomSheet";
 import ButtonCta from "@/components/FirstInstallation/ButtonCta";
-import { useTheme } from "@react-navigation/native";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
 import Reanimated, { Easing, useSharedValue, withTiming } from "react-native-reanimated";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RouteParameters } from "@/router/helpers/types";
-import { get_iso_date, Log } from "@/utils/logger/logger";
+import { get_iso_date } from "@/utils/logger/logger";
 import {AddonLogs} from "@/addons/types";
 
 export type AddonHomePageInfo = {
@@ -181,8 +181,8 @@ const AddonsWebview: React.FC<AddonsWebviewProps> = ({
             </View>
           </View>
           <View style={{flex: 1, display: "flex", gap: 5}}>
-            <NativeText variant="title">{addon.name + " requiert votre position"}</NativeText>
-            <NativeText variant="subtitle">L'extension indique : Nous utilisons votre positions pour vous manger durant votre sommeil 😈</NativeText>
+            <NativeText variant="title">{addon.name + " requiert ta position"}</NativeText>
+            <NativeText variant="subtitle">L'extension indique : Nous utilisons ta position pour te manger durant ton sommeil 😈</NativeText>
           </View>
         </View>
         <View style={{paddingHorizontal: 16, display: "flex", flexDirection: "row", gap: 10, height: 48}}>

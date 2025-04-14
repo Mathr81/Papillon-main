@@ -5,13 +5,12 @@ import {
   Dimensions,
   KeyboardAvoidingView,
   Platform,
-  Alert,
 } from "react-native";
 
 import { WebView } from "react-native-webview";
 import type { Screen } from "@/router/helpers/types";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useTheme } from "@react-navigation/native";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
 import MaskStars from "@/components/FirstInstallation/MaskStars";
 
 import Reanimated, {
@@ -24,8 +23,6 @@ import Reanimated, {
 
 import pronote from "pawnote";
 
-import { Audio } from "expo-av";
-
 import { useAccounts, useCurrentAccount } from "@/stores/account";
 import { Account, AccountService } from "@/stores/account/types";
 import uuid from "@/utils/uuid-v4";
@@ -34,6 +31,8 @@ import extract_pronote_name from "@/utils/format/extract_pronote_name";
 import PapillonSpinner from "@/components/Global/PapillonSpinner";
 import { animPapillon } from "@/utils/ui/animations";
 import { useAlert } from "@/providers/AlertProvider";
+import useSoundHapticsWrapper from "@/utils/native/playSoundHaptics";
+import { BadgeInfo, Undo2 } from "lucide-react-native";
 
 const PronoteWebview: Screen<"PronoteWebview"> = ({ route, navigation }) => {
   const theme = useTheme();
@@ -47,10 +46,12 @@ const PronoteWebview: Screen<"PronoteWebview"> = ({ route, navigation }) => {
   const [, setCurrentURL] = useState("");
 
   const [deviceUUID] = useState(uuid());
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
-  const [sound2, setSound2] = useState<Audio.Sound | null>(null);
 
   const [loginStep, setLoginStep] = useState("Préparation de la connexion");
+
+  const { playSound } = useSoundHapticsWrapper();
+  const LEson3 = require("@/../assets/sound/3.wav");
+  const LEson4 = require("@/../assets/sound/4.wav");
 
   const instanceURL = route.params.instanceURL.toLowerCase();
 
@@ -74,38 +75,7 @@ const PronoteWebview: Screen<"PronoteWebview"> = ({ route, navigation }) => {
   ).toUTCString();
 
   useEffect(() => {
-    const loadSound = async () => {
-      const { sound } = await Audio.Sound.createAsync(
-        require("@/../assets/sound/3.wav")
-      );
-      setSound(sound);
-      const sound2 = await Audio.Sound.createAsync(
-        require("@/../assets/sound/4.wav")
-      );
-      setSound2(sound2.sound);
-      await sound.replayAsync();
-    };
-
-    loadSound();
-
-    return () => {
-      if (sound) {
-        sound.unloadAsync();
-      }
-      if (sound2) {
-        sound2.unloadAsync();
-      }
-    };
-  }, []);
-
-  const playSound = async () => {
-    if (sound) {
-      await sound2?.replayAsync();
-    }
-  };
-
-  useEffect(() => {
-    playSound();
+    playSound(LEson3);
   }, []);
 
   const INJECT_PRONOTE_JSON = `
@@ -281,7 +251,7 @@ const PronoteWebview: Screen<"PronoteWebview"> = ({ route, navigation }) => {
               setLoading(true);
 
               if (url.includes("mobile.eleve.html")) {
-                setLoginStep("En attente de votre établissement");
+                setLoginStep("En attente de ton établissement");
                 setShowWebView(false);
               }
             }}
@@ -344,6 +314,10 @@ const PronoteWebview: Screen<"PronoteWebview"> = ({ route, navigation }) => {
 
                   authentication: { ...refresh, deviceUUID },
                   personalization: await defaultPersonalization(session),
+
+                  identity: {},
+                  serviceData: {},
+                  providers: []
                 };
 
                 pronote.startPresenceInterval(session);
@@ -355,7 +329,7 @@ const PronoteWebview: Screen<"PronoteWebview"> = ({ route, navigation }) => {
                 queueMicrotask(() => {
                   // Reset the navigation stack to the "Home" screen.
                   // Prevents the user from going back to the login screen.
-                  playSound();
+                  playSound(LEson4);
                   navigation.reset({
                     index: 0,
                     routes: [{ name: "AccountCreated" }],
@@ -365,7 +339,6 @@ const PronoteWebview: Screen<"PronoteWebview"> = ({ route, navigation }) => {
             }}
             onLoadEnd={(e) => {
               const { url } = e.nativeEvent;
-              console.log("Pronote webview load end", url);
 
               webViewRef.current?.injectJavaScript(
                 INJECT_PRONOTE_INITIAL_LOGIN_HOOK
@@ -381,31 +354,19 @@ const PronoteWebview: Screen<"PronoteWebview"> = ({ route, navigation }) => {
                 setLoading(false);
                 if (url.includes("pronote/mobile.eleve.html")) {
                   if (!url.includes("identifiant")) {
-                    if (Platform.OS === "ios") {
-                      Alert.alert(
-                        "Attention",
-                        "Désolé, seules les comptes élèves sont compatibles pour le moment.",
-                        [
-                          {
-                            text: "OK",
-                            onPress: () => navigation.goBack(),
-                          },
-                        ]
-                      );
-                    } else {
-                      showAlert({
-                        title: "Attention",
-                        message:
-                          "Désolé, seules les comptes élèves sont compatibles pour le moment.",
-                        actions: [
-                          {
-                            title: "OK",
-                            onPress: () => navigation.goBack(),
-                            backgroundColor: theme.colors.card,
-                          },
-                        ],
-                      });
-                    }
+                    showAlert({
+                      title: "Attention",
+                      message: "Désolé, seuls les comptes élèves sont compatibles pour le moment.",
+                      icon: <BadgeInfo />,
+                      actions: [
+                        {
+                          title: "OK",
+                          primary: true,
+                          icon: <Undo2 />,
+                          onPress: () => navigation.goBack(),
+                        },
+                      ],
+                    });
                   } else {
                     webViewRef.current?.injectJavaScript(
                       INJECT_PRONOTE_INITIAL_LOGIN_HOOK

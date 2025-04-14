@@ -5,18 +5,19 @@ import ecoledirecte from "./ecoledirecte";
 import ServiceSelector from "@/views/login/ServiceSelector";
 import skolengo from "./skolengo";
 import identityProvider from "./identityProvider";
+import { Platform } from "react-native";
 
 export default [
   createScreen("ServiceSelector", ServiceSelector, {
     headerTitle: "",
     headerTransparent: true,
     headerBackVisible: true,
-    animation: "slide_from_bottom",
-    animationDuration: 250
+    animation: Platform.OS === "android" ? "slide_from_bottom" : undefined,
+    animationDuration: 250,
   }),
 
   ...pronote,
   ...ecoledirecte,
   ...skolengo,
-  ...identityProvider
+  ...identityProvider,
 ] as const;

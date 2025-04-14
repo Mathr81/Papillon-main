@@ -1,5 +1,5 @@
 import React from "react";
-import { Image, View, StyleSheet, Text } from "react-native";
+import { View } from "react-native";
 
 import { WebView } from "react-native-webview";
 
@@ -11,7 +11,7 @@ import defaultPersonalization from "@/services/local/default-personalization";
 import uuid from "@/utils/uuid-v4";
 import PapillonSpinner from "@/components/Global/PapillonSpinner";
 import { NativeText } from "@/components/Global/NativeComponents";
-import { useTheme } from "@react-navigation/native";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
 
 const UnivRennes1_Login: Screen<"UnivRennes1_Login"> = ({ navigation }) => {
   const mainURL = "https://sesame.univ-rennes1.fr/comptes/";
@@ -37,6 +37,8 @@ const UnivRennes1_Login: Screen<"UnivRennes1_Login"> = ({ navigation }) => {
           rawData: data
         },
 
+        providers: ["ical", "moodle"],
+
         localID: uuid(),
         service: AccountService.Local,
 
@@ -51,7 +53,9 @@ const UnivRennes1_Login: Screen<"UnivRennes1_Login"> = ({ navigation }) => {
         className: "UR1", // TODO ?
         schoolName: data.caccount.data.attachmentDpt.name.replace("Institut Universitaire de Technologie", "IUT") + " - Université de Rennes",
 
-        personalization: await defaultPersonalization()
+        personalization: await defaultPersonalization(),
+        identity: {},
+        serviceData: {}
       };
 
       createStoredAccount(local_account);

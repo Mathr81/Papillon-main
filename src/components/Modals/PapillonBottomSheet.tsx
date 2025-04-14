@@ -1,6 +1,7 @@
-import { useTheme } from "@react-navigation/native";
+import useScreenDimensions from "@/hooks/useScreenDimensions";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
 import React, {useCallback} from "react";
-import { KeyboardAvoidingView, Modal, Pressable, View } from "react-native";
+import { KeyboardAvoidingView, Modal, Pressable } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 
 import Reanimated, {
@@ -26,6 +27,7 @@ const BottomSheet = ({ children, opened, setOpened, ...props }: BottomSheetProps
   const colors = useTheme().colors;
   const translateY = useSharedValue(0);
   const insets = useSafeAreaInsets();
+  const { isTablet } = useScreenDimensions();
 
   const closeModal = useCallback(() => {
     setOpened(false);
@@ -69,6 +71,7 @@ const BottomSheet = ({ children, opened, setOpened, ...props }: BottomSheetProps
         style={{
           flex: 1,
           justifyContent: "flex-end",
+          alignItems: "center",
           backgroundColor: "rgba(0, 0, 0, 0.4)",
         }}
       >
@@ -90,6 +93,8 @@ const BottomSheet = ({ children, opened, setOpened, ...props }: BottomSheetProps
                   borderTopRightRadius: 16,
                   borderCurve: "continuous",
                   paddingBottom: insets.bottom + 10 + 16,
+                  width: "100%",
+                  maxWidth: isTablet ? "50%" : "100%",
                 },
                 animatedStyle,
                 props.contentContainerStyle,

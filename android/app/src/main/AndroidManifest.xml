@@ -6,12 +6,86 @@
   <uses-permission android:name="android.permission.INTERNET"/>
   <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
   <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+  <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
   <uses-permission android:name="android.permission.RECORD_AUDIO"/>
   <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
   <uses-permission android:name="android.permission.VIBRATE"/>
+  <uses-permission android:name="android.permission.WAKE_LOCK"/>
   <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
   <uses-permission android:name="android.permission.WRITE_SETTINGS"/>
   <queries>
+    <package android:name="com.facebook.katana"/>
+    <package android:name="com.instagram.android"/>
+    <package android:name="com.twitter.android"/>
+    <package android:name="com.zhiliaoapp.musically"/>
+    <package android:name="com.facebook.katana"/>
+    <package android:name="com.instagram.android"/>
+    <package android:name="com.twitter.android"/>
+    <package android:name="com.zhiliaoapp.musically"/>
+    <package android:name="com.facebook.katana"/>
+    <package android:name="com.instagram.android"/>
+    <package android:name="com.twitter.android"/>
+    <package android:name="com.zhiliaoapp.musically"/>
+    <package android:name="com.facebook.katana"/>
+    <package android:name="com.instagram.android"/>
+    <package android:name="com.twitter.android"/>
+    <package android:name="com.zhiliaoapp.musically"/>
+    <package android:name="com.facebook.katana"/>
+    <package android:name="com.instagram.android"/>
+    <package android:name="com.twitter.android"/>
+    <package android:name="com.zhiliaoapp.musically"/>
+    <package android:name="com.facebook.katana"/>
+    <package android:name="com.instagram.android"/>
+    <package android:name="com.twitter.android"/>
+    <package android:name="com.zhiliaoapp.musically"/>
+    <package android:name="com.facebook.katana"/>
+    <package android:name="com.instagram.android"/>
+    <package android:name="com.twitter.android"/>
+    <package android:name="com.zhiliaoapp.musically"/>
+    <package android:name="com.facebook.katana"/>
+    <package android:name="com.instagram.android"/>
+    <package android:name="com.twitter.android"/>
+    <package android:name="com.zhiliaoapp.musically"/>
+    <package android:name="com.facebook.katana"/>
+    <package android:name="com.instagram.android"/>
+    <package android:name="com.twitter.android"/>
+    <package android:name="com.zhiliaoapp.musically"/>
+    <package android:name="com.facebook.katana"/>
+    <package android:name="com.instagram.android"/>
+    <package android:name="com.twitter.android"/>
+    <package android:name="com.zhiliaoapp.musically"/>
+    <package android:name="com.facebook.katana"/>
+    <package android:name="com.instagram.android"/>
+    <package android:name="com.twitter.android"/>
+    <package android:name="com.zhiliaoapp.musically"/>
+    <package android:name="com.facebook.katana"/>
+    <package android:name="com.instagram.android"/>
+    <package android:name="com.twitter.android"/>
+    <package android:name="com.zhiliaoapp.musically"/>
+    <package android:name="com.facebook.katana"/>
+    <package android:name="com.instagram.android"/>
+    <package android:name="com.twitter.android"/>
+    <package android:name="com.zhiliaoapp.musically"/>
+    <package android:name="com.facebook.katana"/>
+    <package android:name="com.instagram.android"/>
+    <package android:name="com.twitter.android"/>
+    <package android:name="com.zhiliaoapp.musically"/>
+    <package android:name="com.facebook.katana"/>
+    <package android:name="com.instagram.android"/>
+    <package android:name="com.twitter.android"/>
+    <package android:name="com.zhiliaoapp.musically"/>
+    <package android:name="com.facebook.katana"/>
+    <package android:name="com.instagram.android"/>
+    <package android:name="com.twitter.android"/>
+    <package android:name="com.zhiliaoapp.musically"/>
+    <package android:name="com.facebook.katana"/>
+    <package android:name="com.instagram.android"/>
+    <package android:name="com.twitter.android"/>
+    <package android:name="com.zhiliaoapp.musically"/>
+    <package android:name="com.facebook.katana"/>
+    <package android:name="com.instagram.android"/>
+    <package android:name="com.twitter.android"/>
+    <package android:name="com.zhiliaoapp.musically"/>
     <intent>
       <action android:name="android.intent.action.VIEW"/>
       <category android:name="android.intent.category.BROWSABLE"/>
@@ -22,7 +96,7 @@
     <meta-data android:name="expo.modules.updates.ENABLED" android:value="false"/>
     <meta-data android:name="expo.modules.updates.EXPO_UPDATES_CHECK_ON_LAUNCH" android:value="ALWAYS"/>
     <meta-data android:name="expo.modules.updates.EXPO_UPDATES_LAUNCH_WAIT_MS" android:value="0"/>
-    <activity android:name=".MainActivity" android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode" android:launchMode="singleTask" android:windowSoftInputMode="adjustResize" android:theme="@style/Theme.App.SplashScreen" android:exported="true" android:screenOrientation="portrait">
+    <activity android:name=".MainActivity" android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode" android:launchMode="singleTask" android:windowSoftInputMode="adjustResize" android:theme="@style/Theme.App.SplashScreen" android:exported="true" android:screenOrientation="unspecified">
       <intent-filter>
         <action android:name="android.intent.action.MAIN"/>
         <category android:name="android.intent.category.LAUNCHER"/>
@@ -34,6 +108,14 @@
         <data android:scheme="papillon"/>
         <data android:scheme="xyz.getpapillon.app"/>
         <data android:scheme="izly"/>
+        <data android:scheme="exp+papillonvex"/>
+      </intent-filter>
+      <intent-filter data-generated="true">
+        <action android:name="android.intent.action.VIEW"/>
+        <data android:scheme="papillon"/>
+        <data android:scheme="izly"/>
+        <category android:name="android.intent.category.BROWSABLE"/>
+        <category android:name="android.intent.category.DEFAULT"/>
       </intent-filter>
     </activity>
     <activity android:name="com.facebook.react.devsupport.DevSettingsActivity" android:exported="false"/>

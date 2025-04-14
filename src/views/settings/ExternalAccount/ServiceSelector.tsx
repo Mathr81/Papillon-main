@@ -1,45 +1,48 @@
 import React, { useState } from "react";
 import type { Screen } from "@/router/helpers/types";
-import { useTheme } from "@react-navigation/native";
-import { CircleDashed, Star } from "lucide-react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Image, View, StyleSheet, StatusBar, ScrollView } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { Image, View, StyleSheet } from "react-native";
 import Reanimated, { LinearTransition, FlipInXDown } from "react-native-reanimated";
 import PapillonShineBubble from "@/components/FirstInstallation/PapillonShineBubble";
-import {
-  NativeItem,
-  NativeList,
-  NativeText,
-} from "@/components/Global/NativeComponents";
 import { AccountService } from "@/stores/account/types";
-import { useCurrentAccount } from "@/stores/account";
 import DuoListPressable from "@/components/FirstInstallation/DuoListPressable";
 import ButtonCta from "@/components/FirstInstallation/ButtonCta";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { useAlert } from "@/providers/AlertProvider";
+import { Check, WifiOff } from "lucide-react-native";
+import { usePapillonTheme as useTheme } from "@/utils/ui/theme";
+import { useCurrentAccount } from "@/stores/account";
 
 const ExternalAccountSelector: Screen<"ExternalAccountSelector"> = ({ navigation, route }) => {
   const theme = useTheme();
   const { colors } = theme;
   const insets = useSafeAreaInsets();
   const account = useCurrentAccount(store => store.account!);
+  const { isOnline } = useOnlineStatus();
+  const { showAlert } = useAlert();
 
   type Service = AccountService | "Other";
 
   const [service, setService] = useState<Service | null>(null);
 
   return (
-    <SafeAreaView
-      style={styles.container}
-    >
+    <SafeAreaView style={styles.container}>
       <PapillonShineBubble
-        message={"Pour commencer, quel est ton service de cantine ?"}
-        width={250}
+        message="Pour commencer, quel est ton service de cantine ?"
         numberOfLines={2}
-        offsetTop={insets.top}
+        width={260}
+        offsetTop={"15%"}
       />
 
-      <Reanimated.View
+      <Reanimated.ScrollView
         style={styles.list}
+        contentContainerStyle={{
+          alignItems: "center",
+          gap: 9,
+          paddingHorizontal: 20,
+          paddingTop: 30,
+          paddingBottom: 60,
+        }}
         layout={LinearTransition}
       >
         <Reanimated.View
@@ -71,7 +74,7 @@ const ExternalAccountSelector: Screen<"ExternalAccountSelector"> = ({ navigation
         <Reanimated.View
           style={{ width: "100%" }}
           layout={LinearTransition}
-          entering={FlipInXDown.springify().delay(200)}
+          entering={FlipInXDown.springify().delay(300)}
         >
           <DuoListPressable
             leading={<Image source={require("../../../../assets/images/service_izly.png")} style={styles.image} />}
@@ -80,20 +83,19 @@ const ExternalAccountSelector: Screen<"ExternalAccountSelector"> = ({ navigation
             onPress={() => setService(AccountService.Izly)}
           />
         </Reanimated.View>
-
         <Reanimated.View
           style={{ width: "100%" }}
           layout={LinearTransition}
-          entering={FlipInXDown.springify().delay(300)}
+          entering={FlipInXDown.springify().delay(400)}
         >
           <DuoListPressable
-            leading={<CircleDashed style={styles.image} />}
-            text="Ne sais pas/N’est pas listé"
-            enabled={service === "Other"}
-            onPress={() => setService("Other")}
+            leading={<Image source={require("../../../../assets/images/service_alise.jpg")} style={styles.image} />}
+            text="Alise"
+            enabled={service === AccountService.Alise}
+            onPress={() => setService(AccountService.Alise)}
           />
         </Reanimated.View>
-      </Reanimated.View>
+      </Reanimated.ScrollView>
 
       <View style={styles.buttons}>
         <ButtonCta
@@ -102,7 +104,21 @@ const ExternalAccountSelector: Screen<"ExternalAccountSelector"> = ({ navigation
           disabled={!service || service === "Other"}
           onPress={() => {
             if (service) {
-              navigation.navigate("ExternalAccountSelectMethod", { service });
+              if (isOnline) {
+                navigation.navigate("ExternalAccountSelectMethod", { service });
+              } else {
+                showAlert({
+                  title: "Information",
+                  message: "Pour poursuivre la connexion, tu dois être connecté à Internet. Vérifie ta connexion Internet et réessaie",
+                  icon: <WifiOff />,
+                  actions: [
+                    {
+                      title: "OK",
+                      icon: <Check />,
+                    },
+                  ],
+                });
+              }
             }
           }}
         />
@@ -121,9 +137,6 @@ const styles = StyleSheet.create({
   list: {
     flex: 1,
     width: "100%",
-    alignItems: "center",
-    gap: 9,
-    paddingHorizontal: 20,
   },
 
   buttons: {
