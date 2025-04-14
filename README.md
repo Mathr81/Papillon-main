@@ -31,7 +31,6 @@ Voici un aperçu de ce qui a été accompli et ce qui est en cours de développe
   - [x] EcoleDirecte
   - [x] Skolengo
   - [x] Universités :
-    - Limoges
     - Lorraine
     - Nîmes
     - Polytechnique Hauts-de-France (UPHF)
